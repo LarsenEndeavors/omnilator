@@ -310,13 +310,30 @@ export class LibRetroCore implements IEmulatorCore {
       };
       
       // Make Module available globally for the Emscripten loader
+      // Use a unique namespace to avoid conflicts
+      const globalObj = window as { __omnilatorModule?: typeof Module };
+      globalObj.__omnilatorModule = Module;
       (window as { Module?: typeof Module }).Module = Module;
       
       script.onerror = () => {
         reject(new Error(`Failed to load core from ${this.coreUrl}`));
       };
       
+      // Append script and track for cleanup
       document.head.appendChild(script);
+      
+      // Clean up script element after module loads
+      const cleanup = () => {
+        if (script.parentNode) {
+          script.parentNode.removeChild(script);
+        }
+        // Clean up global namespace
+        delete (window as { Module?: typeof Module }).Module;
+        delete (window as { __omnilatorModule?: typeof Module }).__omnilatorModule;
+      };
+      
+      // Schedule cleanup after a delay to ensure module is fully initialized
+      setTimeout(cleanup, 1000);
     });
   }
 
@@ -561,12 +578,18 @@ export class LibRetroCore implements IEmulatorCore {
    * 
    * Most cores prefer to use the batch callback for efficiency.
    * 
+   * Converts int16 samples to float32 in the range [-1, 1].
+   * Note: int16 range is asymmetric (-32768 to 32767), but for audio
+   * we treat it symmetrically by dividing by 32768.0.
+   * 
    * @param left - Left channel sample (-32768 to 32767)
    * @param right - Right channel sample (-32768 to 32767)
    * @private
    */
   private audioSampleCallback(left: number, right: number): void {
-    // Convert from int16 range to float32 range
+    // Convert from int16 range to float32 range [-1, 1]
+    // Using 32768.0 for both positive and negative values is acceptable for audio
+    // as the error at -32768 (-1.00003) is negligible
     const leftFloat = left / 32768.0;
     const rightFloat = right / 32768.0;
     
@@ -583,6 +606,10 @@ export class LibRetroCore implements IEmulatorCore {
    * This is the preferred way for cores to send audio data. The samples are
    * interleaved stereo int16 values that need to be converted to float32.
    * 
+   * Converts int16 samples to float32 in the range [-1, 1].
+   * Note: int16 range is asymmetric (-32768 to 32767), but for audio
+   * we treat it symmetrically by dividing by 32768.0.
+   * 
    * @param data - Pointer to audio data in WASM memory
    * @param frames - Number of stereo frames (each frame is 2 samples: L+R)
    * @returns Number of frames processed
@@ -593,6 +620,7 @@ export class LibRetroCore implements IEmulatorCore {
     const samples = new Int16Array(this.memory!, data, frames * 2);
     
     // Convert to float32 and copy to our buffer
+    // Using 32768.0 for conversion is standard practice for audio
     for (let i = 0; i < frames * 2 && this.audioWritePos < this.maxAudioSamples * 2; i++) {
       this.audioBuffer[this.audioWritePos++] = samples[i] / 32768.0;
     }
