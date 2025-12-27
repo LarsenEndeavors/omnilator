@@ -154,6 +154,11 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
         </div>
       )}
 
+      <div className="demo-notice">
+        <strong>⚠️ Demo Mode:</strong> This is a test implementation showing input responsiveness. 
+        Press buttons to see visual indicators. A real SNES emulator WASM module is needed for actual ROM playback.
+      </div>
+
       <div className="emulator-container">
         <canvas
           ref={canvasRef}

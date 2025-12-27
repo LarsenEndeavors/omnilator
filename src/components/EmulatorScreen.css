@@ -57,6 +57,18 @@
   color: #ff6b6b;
 }
 
+.demo-notice {
+  width: 100%;
+  max-width: 800px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 0.5rem;
+  color: #ffc107;
+  text-align: center;
+}
+
 .emulator-container {
   background: #000;
   border-radius: 0.5rem;

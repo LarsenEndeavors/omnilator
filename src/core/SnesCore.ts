@@ -1,5 +1,10 @@
 import type { IEmulatorCore } from './IEmulatorCore';
 
+/**
+ * Interface for WASM module functions
+ * This defines the expected API of a SNES emulator WASM module.
+ * In a real implementation, this would be provided by snes9x or similar.
+ */
 interface WasmModule {
   loadROM: (data: Uint8Array) => boolean;
   runFrame: () => boolean;
@@ -13,6 +18,17 @@ interface WasmModule {
 
 /**
  * SNES emulator core implementation wrapping Snes9x WASM
+ * 
+ * ⚠️ CURRENT STATUS: This is a demo/mock implementation.
+ * 
+ * This class demonstrates the emulator infrastructure (rendering loop, input handling,
+ * audio system, save states) but does not actually emulate SNES ROMs. It generates
+ * a gradient pattern with button indicators to show that all systems are functional.
+ * 
+ * For integrating a real SNES emulator, see docs/EMULATOR_INTEGRATION.md
+ * 
+ * The architecture is designed to make it easy to swap this mock implementation
+ * for a real WASM-based emulator without changing any other code.
  */
 export class SnesCore implements IEmulatorCore {
   private wasmModule: WasmModule | null = null;
@@ -128,10 +144,16 @@ export class SnesCore implements IEmulatorCore {
 
   /**
    * Generate a mock frame for testing purposes
-   * Creates a gradient pattern to visualize the emulator is running
+   * Creates a visual pattern that responds to controller input to demonstrate
+   * that the emulator loop and input handling are working correctly.
+   * 
+   * NOTE: This is a placeholder. A real implementation requires integrating
+   * a SNES emulator WASM module (e.g., snes9x compiled to WebAssembly).
    */
   private generateMockFrame(): void {
     const time = Date.now() / 1000;
+    
+    // Base gradient background
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
         const index = (y * this.width + x) * 4;
@@ -144,6 +166,75 @@ export class SnesCore implements IEmulatorCore {
         this.videoBuffer[index + 2] = b;
         this.videoBuffer[index + 3] = 255;
       }
+    }
+
+    // Draw input indicators to show buttons are being registered
+    const drawBox = (x: number, y: number, width: number, height: number, r: number, g: number, b: number) => {
+      for (let dy = 0; dy < height; dy++) {
+        for (let dx = 0; dx < width; dx++) {
+          const px = x + dx;
+          const py = y + dy;
+          if (px >= 0 && px < this.width && py >= 0 && py < this.height) {
+            const index = (py * this.width + px) * 4;
+            this.videoBuffer[index] = r;
+            this.videoBuffer[index + 1] = g;
+            this.videoBuffer[index + 2] = b;
+            this.videoBuffer[index + 3] = 255;
+          }
+        }
+      }
+    };
+
+    // Button indicators
+    const buttonSize = 20;
+    const padding = 10;
+    const yPos = padding;
+
+    // D-Pad indicators
+    if (this.inputState[0] & (1 << 4)) { // UP
+      drawBox(this.width / 2 - buttonSize / 2, yPos, buttonSize, buttonSize, 255, 255, 0);
+    }
+    if (this.inputState[0] & (1 << 5)) { // DOWN
+      drawBox(this.width / 2 - buttonSize / 2, yPos + buttonSize * 2, buttonSize, buttonSize, 255, 255, 0);
+    }
+    if (this.inputState[0] & (1 << 6)) { // LEFT
+      drawBox(this.width / 2 - buttonSize * 1.5, yPos + buttonSize, buttonSize, buttonSize, 255, 255, 0);
+    }
+    if (this.inputState[0] & (1 << 7)) { // RIGHT
+      drawBox(this.width / 2 + buttonSize / 2, yPos + buttonSize, buttonSize, buttonSize, 255, 255, 0);
+    }
+
+    // Action buttons (right side)
+    const buttonX = this.width - padding - buttonSize * 3;
+    if (this.inputState[0] & (1 << 0)) { // B
+      drawBox(buttonX, yPos + buttonSize, buttonSize, buttonSize, 255, 0, 0);
+    }
+    if (this.inputState[0] & (1 << 8)) { // A
+      drawBox(buttonX + buttonSize * 2, yPos + buttonSize, buttonSize, buttonSize, 0, 255, 0);
+    }
+    if (this.inputState[0] & (1 << 1)) { // Y
+      drawBox(buttonX, yPos, buttonSize, buttonSize, 0, 0, 255);
+    }
+    if (this.inputState[0] & (1 << 9)) { // X
+      drawBox(buttonX + buttonSize * 2, yPos, buttonSize, buttonSize, 0, 255, 255);
+    }
+
+    // Shoulder buttons
+    if (this.inputState[0] & (1 << 10)) { // L
+      drawBox(padding, padding, buttonSize * 2, buttonSize, 200, 200, 200);
+    }
+    if (this.inputState[0] & (1 << 11)) { // R
+      drawBox(this.width - padding - buttonSize * 2, padding, buttonSize * 2, buttonSize, 200, 200, 200);
+    }
+
+    // Start/Select
+    const centerX = this.width / 2;
+    const centerY = this.height / 2;
+    if (this.inputState[0] & (1 << 3)) { // START
+      drawBox(centerX + buttonSize, centerY, buttonSize, buttonSize / 2, 255, 255, 255);
+    }
+    if (this.inputState[0] & (1 << 2)) { // SELECT
+      drawBox(centerX - buttonSize * 2, centerY, buttonSize, buttonSize / 2, 150, 150, 150);
     }
 
     // Generate mock audio samples (simple sine wave)
