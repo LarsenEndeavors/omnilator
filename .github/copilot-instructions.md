@@ -94,9 +94,20 @@ const handleSaveState = (slot: number) => {
 **Example**: `SnesCore` uses mock implementations clearly labeled:
 
 ```typescript
-loadROM: (data: Uint8Array) => {
-  console.log('Mock: ROM loaded', data.length, 'bytes');
-  return true;
+// Internal WASM module mock
+this.wasmModule = {
+  loadROM: (data: Uint8Array) => {
+    console.log('Mock: ROM loaded', data.length, 'bytes');
+    return true; // WASM module returns boolean
+  },
+  // ... other methods
+};
+
+// IEmulatorCore implementation wraps it
+async loadROM(romData: Uint8Array): Promise<void> {
+  if (!this.wasmModule || !this.wasmModule.loadROM(romData)) {
+    throw new Error('Failed to load ROM');
+  }
 }
 ```
 
