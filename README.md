@@ -1,73 +1,97 @@
-# React + TypeScript + Vite
+# Omnilator - Web SNES Emulator
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A browser-based SNES emulator built with React, TypeScript, and Vite.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 🎮 **Full SNES Emulation Core**: IEmulatorCore interface with SnesCore implementation
+- 🖼️ **Canvas Rendering**: 60 FPS hardware-accelerated rendering with requestAnimationFrame
+- ⌨️ **Input Support**: Keyboard and Gamepad API with full SNES controller mapping
+- 🔊 **Low-Latency Audio**: WebAudio API with AudioWorklet processor
+- 💾 **Save States**: 4-slot save/load state system
+- 📁 **ROM Loading**: Support for .smc and .sfc ROM files
+- 🎨 **Modern UI**: Responsive design with real-time stats display
 
-## React Compiler
+## Getting Started
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Installation
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Development
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run dev
 ```
+
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+### Build
+
+```bash
+npm run build
+```
+
+## Controls
+
+### Keyboard
+
+- **D-Pad**: Arrow Keys or WASD
+- **A Button**: X
+- **B Button**: Z
+- **X Button**: V
+- **Y Button**: C
+- **L Button**: Q
+- **R Button**: E
+- **Start**: Enter
+- **Select**: Shift
+
+### Gamepad
+
+Standard gamepad mapping is supported with automatic detection.
+
+## Architecture
+
+### Core Components
+
+- **IEmulatorCore**: Interface defining emulator operations (loadROM, runFrame, getBuffer, etc.)
+- **SnesCore**: Implementation wrapping Snes9x WASM module
+- **EmulatorScreen**: Main React component with canvas and controls
+- **useEmulator**: Custom hook managing the rendering loop
+- **useInput**: Custom hook for keyboard and gamepad input
+- **AudioSystem**: WebAudio-based audio streaming system
+
+### Project Structure
+
+```
+src/
+├── core/
+│   ├── IEmulatorCore.ts    # Core emulator interface
+│   └── SnesCore.ts          # SNES emulator implementation
+├── components/
+│   ├── EmulatorScreen.tsx   # Main emulator UI
+│   └── EmulatorScreen.css   # Styles
+├── hooks/
+│   ├── useEmulator.ts       # Emulator lifecycle hook
+│   └── useInput.ts          # Input handling hook
+├── audio/
+│   └── AudioSystem.ts       # Audio management
+└── data/
+    └── games.json           # Game library metadata
+```
+
+## Technologies
+
+- **React 19**: UI framework
+- **TypeScript 5.9**: Type safety
+- **Vite 7**: Build tool and dev server
+- **WebAudio API**: Low-latency audio
+- **Canvas API**: Hardware-accelerated rendering
+- **Gamepad API**: Controller support
+
+## License
+
+MIT
+
