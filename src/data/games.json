@@ -1,0 +1,52 @@
+[
+  {
+    "id": "demo-game",
+    "title": "Demo Game",
+    "description": "A demo game to test the emulator functionality",
+    "coverImage": "/covers/demo.png",
+    "releaseYear": 1991,
+    "genre": "Demo",
+    "region": "US",
+    "romPath": "/roms/demo.smc"
+  },
+  {
+    "id": "super-mario-world",
+    "title": "Super Mario World",
+    "description": "Classic platformer adventure with Mario and Yoshi",
+    "coverImage": "/covers/smw.png",
+    "releaseYear": 1991,
+    "genre": "Platformer",
+    "region": "US",
+    "romPath": "/roms/smw.smc"
+  },
+  {
+    "id": "the-legend-of-zelda-alttp",
+    "title": "The Legend of Zelda: A Link to the Past",
+    "description": "Epic action-adventure game in the kingdom of Hyrule",
+    "coverImage": "/covers/zelda.png",
+    "releaseYear": 1991,
+    "genre": "Action-Adventure",
+    "region": "US",
+    "romPath": "/roms/zelda.smc"
+  },
+  {
+    "id": "super-metroid",
+    "title": "Super Metroid",
+    "description": "Sci-fi action-adventure with exploration and power-ups",
+    "coverImage": "/covers/metroid.png",
+    "releaseYear": 1994,
+    "genre": "Action-Adventure",
+    "region": "US",
+    "romPath": "/roms/metroid.smc"
+  },
+  {
+    "id": "donkey-kong-country",
+    "title": "Donkey Kong Country",
+    "description": "Revolutionary platformer with pre-rendered graphics",
+    "coverImage": "/covers/dkc.png",
+    "releaseYear": 1994,
+    "genre": "Platformer",
+    "region": "US",
+    "romPath": "/roms/dkc.smc"
+  }
+]
