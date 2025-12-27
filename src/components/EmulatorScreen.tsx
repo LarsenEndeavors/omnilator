@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { SnesCore } from '../core/SnesCore';
+import { SnesButton } from '../core/IEmulatorCore';
 import { useEmulator } from '../hooks/useEmulator';
 import { useInput } from '../hooks/useInput';
 import { AudioSystem } from '../audio/AudioSystem';
@@ -8,6 +9,28 @@ import './EmulatorScreen.css';
 interface EmulatorScreenProps {
   romData?: Uint8Array;
 }
+
+/**
+ * Convert button mask to human-readable button names
+ * @param buttonMask - The button state bitmask
+ * @returns Array of pressed button names
+ */
+const getButtonNames = (buttonMask: number): string[] => {
+  const names: string[] = [];
+  if (buttonMask & SnesButton.UP) names.push('UP');
+  if (buttonMask & SnesButton.DOWN) names.push('DOWN');
+  if (buttonMask & SnesButton.LEFT) names.push('LEFT');
+  if (buttonMask & SnesButton.RIGHT) names.push('RIGHT');
+  if (buttonMask & SnesButton.A) names.push('A');
+  if (buttonMask & SnesButton.B) names.push('B');
+  if (buttonMask & SnesButton.X) names.push('X');
+  if (buttonMask & SnesButton.Y) names.push('Y');
+  if (buttonMask & SnesButton.L) names.push('L');
+  if (buttonMask & SnesButton.R) names.push('R');
+  if (buttonMask & SnesButton.START) names.push('START');
+  if (buttonMask & SnesButton.SELECT) names.push('SELECT');
+  return names;
+};
 
 export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
   const [core] = useState(() => new SnesCore());
@@ -159,26 +182,38 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
           </label>
         </div>
 
-        <div className="control-group">
-          <span>Save States:</span>
-          {[1, 2, 3, 4].map(slot => (
-            <div key={slot} className="save-state-buttons">
-              <button
-                onClick={() => handleSaveState(slot)}
-                disabled={!isInitialized}
-                title={`Save to slot ${slot}`}
-              >
-                💾 {slot}
-              </button>
-              <button
-                onClick={() => handleLoadState(slot)}
-                disabled={!isInitialized || !saveStates.has(slot)}
-                title={`Load from slot ${slot}`}
-              >
-                📂 {slot}
-              </button>
-            </div>
-          ))}
+        <div className="save-states-section">
+          <h4>Save States</h4>
+          <div className="save-states-grid">
+            {[1, 2, 3, 4].map(slot => (
+              <div key={slot} className={`save-state-slot ${saveStates.has(slot) ? 'has-save' : ''}`}>
+                <div className="slot-header">
+                  <span className="slot-number">Slot {slot}</span>
+                  <span className="slot-status">
+                    {saveStates.has(slot) ? '✓ Saved' : 'Empty'}
+                  </span>
+                </div>
+                <div className="slot-actions">
+                  <button
+                    onClick={() => handleSaveState(slot)}
+                    disabled={!isInitialized}
+                    title={`Save to slot ${slot}`}
+                    className="save-button"
+                  >
+                    💾 Save
+                  </button>
+                  <button
+                    onClick={() => handleLoadState(slot)}
+                    disabled={!isInitialized || !saveStates.has(slot)}
+                    title={`Load from slot ${slot}`}
+                    className="load-button"
+                  >
+                    📂 Load
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -201,7 +236,14 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
         <div className="button-state">
           <h3>Button State</h3>
           <div className="button-display">
-            Button Mask: 0x{buttons.toString(16).padStart(4, '0').toUpperCase()}
+            <div className="button-mask">
+              0x{buttons.toString(16).padStart(4, '0').toUpperCase()}
+            </div>
+            <div className="button-names">
+              {getButtonNames(buttons).length > 0 
+                ? getButtonNames(buttons).join(' + ')
+                : 'No buttons pressed'}
+            </div>
           </div>
         </div>
       </div>

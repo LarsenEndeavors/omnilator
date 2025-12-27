@@ -151,6 +151,73 @@
   font-size: 0.8rem;
 }
 
+.save-states-section {
+  width: 100%;
+}
+
+.save-states-section h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  color: #ffffff;
+}
+
+.save-states-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.save-state-slot {
+  background: rgba(0, 0, 0, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  transition: all 0.2s;
+}
+
+.save-state-slot.has-save {
+  border-color: rgba(102, 126, 234, 0.5);
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.save-state-slot:hover {
+  border-color: rgba(102, 126, 234, 0.6);
+}
+
+.slot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.slot-number {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.slot-status {
+  font-size: 0.75rem;
+  color: #a0aec0;
+}
+
+.save-state-slot.has-save .slot-status {
+  color: #667eea;
+}
+
+.slot-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.slot-actions button {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+}
+
 .emulator-info {
   width: 100%;
   max-width: 800px;
@@ -188,12 +255,25 @@
 
 .button-display {
   font-family: 'Courier New', monospace;
-  font-size: 1.2rem;
   padding: 1rem;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 0.25rem;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.button-mask {
+  font-size: 1.2rem;
   color: #667eea;
+  font-weight: bold;
+}
+
+.button-names {
+  font-size: 0.9rem;
+  color: #a0aec0;
+  min-height: 1.5rem;
 }
 
 @media (max-width: 900px) {
