@@ -1,5 +1,6 @@
 import type { IEmulatorCore } from './IEmulatorCore';
 import { LibRetroCore } from './LibRetroCore';
+import { MockSnesCore } from './MockSnesCore';
 
 /**
  * SNES emulator core implementation using LibRetro
@@ -23,6 +24,12 @@ import { LibRetroCore } from './LibRetroCore';
  * - Pixel format conversion (RGB565/XRGB8888 → RGBA)
  * - Audio sample format conversion (int16 → float32)
  * - LibRetro callback implementation
+ * 
+ * Fallback Mode:
+ * 
+ * If the LibRetro core fails to load (network issues, missing files), the class
+ * automatically falls back to MockSnesCore which provides a demo mode showing
+ * that the emulator infrastructure is working without requiring external dependencies.
  * 
  * Usage:
  * ```typescript
@@ -48,7 +55,7 @@ import { LibRetroCore } from './LibRetroCore';
  * // Use bsnes core instead
  * const core = new SnesCore('bsnes');
  * 
- * // Use a locally hosted core
+ * // Use a locally hosted core (recommended for production)
  * const core = new SnesCore('snes9x', '/cores/snes9x_libretro.js');
  * ```
  * 
@@ -57,44 +64,82 @@ import { LibRetroCore } from './LibRetroCore';
  * - bsnes: Maximum accuracy, higher CPU requirements
  * - mednafen_snes: Good balance of speed and accuracy
  * 
- * For production use, download cores from https://buildbot.libretro.com/stable/
- * and host them in your public/ directory rather than loading from the CDN.
+ * **Important for Production:**
+ * 
+ * Download cores from https://buildbot.libretro.com/stable/latest/emscripten/
+ * and host them in your public/ directory. The default buildbot URL may not be
+ * accessible in all environments (CORS, network restrictions, etc.).
  */
 export class SnesCore implements IEmulatorCore {
-  private core: LibRetroCore;
+  private core: IEmulatorCore;
+  private isUsingMock = false;
 
   /**
    * Create a new SNES emulator core
    * 
    * @param coreName - Name of the LibRetro core to use (default: 'snes9x')
-   * @param coreUrl - Optional custom URL for the core. If not provided, loads from LibRetro buildbot.
+   * @param coreUrl - Optional custom URL for the core. If not provided, attempts to load from LibRetro buildbot.
+   *                  Will fall back to mock mode if loading fails.
    * 
    * @example
    * ```typescript
-   * // Use default snes9x core from buildbot
+   * // Use default snes9x core (will fall back to mock if unavailable)
    * const core = new SnesCore();
    * 
    * // Use bsnes core for maximum accuracy
    * const core = new SnesCore('bsnes');
    * 
-   * // Use locally hosted core
+   * // Use locally hosted core (recommended for production)
    * const core = new SnesCore('snes9x', '/cores/snes9x_libretro.js');
    * ```
    */
-  constructor(coreName: string = 'snes9x', coreUrl?: string) {
+  constructor(
+    coreName: string = 'snes9x',
+    coreUrl?: string
+  ) {
     this.core = new LibRetroCore(coreName, coreUrl);
   }
 
   /**
    * Initialize the emulator core
    * 
-   * This loads the LibRetro WASM module and sets up all callbacks.
-   * Must be called before any other operations.
+   * This attempts to load the LibRetro WASM module and set up all callbacks.
+   * If the LibRetro core fails to load (network issues, CORS, missing files),
+   * it automatically falls back to MockSnesCore which provides a demo mode.
    * 
-   * @throws Error if initialization fails
+   * Must be called before any other operations.
    */
   async initialize(): Promise<void> {
-    await this.core.initialize();
+    // Check if we're using LibRetroCore
+    const isLibRetro = this.core instanceof LibRetroCore;
+    
+    if (isLibRetro) {
+      try {
+        await this.core.initialize();
+        console.log('LibRetro core initialized successfully');
+      } catch (error) {
+        console.warn('Failed to initialize LibRetro core, falling back to mock mode:', error);
+        console.warn('To use real emulation, download a core from https://buildbot.libretro.com/stable/latest/emscripten/');
+        console.warn('and host it locally, then use: new SnesCore("snes9x", "/cores/snes9x_libretro.js")');
+        
+        // Fall back to mock mode
+        this.core = new MockSnesCore();
+        await this.core.initialize();
+        this.isUsingMock = true;
+      }
+    } else {
+      // Already using mock or other implementation
+      await this.core.initialize();
+    }
+  }
+
+  /**
+   * Check if the core is using mock mode
+   * 
+   * @returns true if using MockSnesCore (demo mode), false if using LibRetroCore
+   */
+  isInMockMode(): boolean {
+    return this.isUsingMock;
   }
 
   /**
@@ -294,6 +339,9 @@ export class SnesCore implements IEmulatorCore {
    * ```
    */
   getCoreInfo(): { name: string; version: string } {
-    return this.core.getCoreInfo();
+    if ('getCoreInfo' in this.core) {
+      return (this.core as LibRetroCore).getCoreInfo();
+    }
+    return { name: 'Mock', version: 'demo' };
   }
 }

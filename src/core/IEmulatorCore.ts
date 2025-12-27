@@ -3,6 +3,12 @@
  */
 export interface IEmulatorCore {
   /**
+   * Initialize the emulator core
+   * @returns Promise that resolves when initialization is complete
+   */
+  initialize(): Promise<void>;
+
+  /**
    * Load a ROM file into the emulator
    * @param romData - The ROM file data as a Uint8Array
    * @returns Promise that resolves when ROM is loaded
