@@ -1,0 +1,204 @@
+import React, { useEffect, useState } from 'react';
+import { SnesCore } from '../core/SnesCore';
+import { useEmulator } from '../hooks/useEmulator';
+import { useInput } from '../hooks/useInput';
+import { AudioSystem } from '../audio/AudioSystem';
+import './EmulatorScreen.css';
+
+interface EmulatorScreenProps {
+  romData?: Uint8Array;
+}
+
+export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
+  const [core] = useState(() => new SnesCore());
+  const [audioSystem] = useState(() => new AudioSystem());
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saveStates, setSaveStates] = useState<Map<number, Uint8Array>>(new Map());
+
+  const { canvasRef, isRunning, fps, toggle } = useEmulator({
+    core,
+    targetFPS: 60,
+  });
+
+  const { buttons, isGamepadConnected } = useInput({
+    port: 0,
+    enabled: isInitialized,
+    onInputChange: (buttons) => {
+      if (isInitialized) {
+        core.setInput(0, buttons);
+      }
+    },
+  });
+
+  // Initialize emulator
+  useEffect(() => {
+    const init = async () => {
+      try {
+        await core.initialize();
+        await audioSystem.initialize(core);
+        setIsInitialized(true);
+        
+        // If ROM data is provided, load it
+        if (romData) {
+          await core.loadROM(romData);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to initialize emulator');
+        console.error('Initialization error:', err);
+      }
+    };
+
+    init();
+
+    return () => {
+      core.cleanup();
+      audioSystem.cleanup();
+    };
+  }, [core, audioSystem, romData]);
+
+  // Sync audio playback with emulator state
+  useEffect(() => {
+    if (isRunning) {
+      audioSystem.start();
+    } else {
+      audioSystem.stop();
+    }
+  }, [isRunning, audioSystem]);
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      await core.loadROM(uint8Array);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load ROM');
+      console.error('ROM load error:', err);
+    }
+  };
+
+  const handleSaveState = (slot: number) => {
+    try {
+      const state = core.saveState();
+      setSaveStates(prev => new Map(prev).set(slot, state));
+      console.log(`State saved to slot ${slot}`);
+    } catch (err) {
+      console.error('Save state error:', err);
+    }
+  };
+
+  const handleLoadState = (slot: number) => {
+    try {
+      const state = saveStates.get(slot);
+      if (state) {
+        core.loadState(state);
+        console.log(`State loaded from slot ${slot}`);
+      }
+    } catch (err) {
+      console.error('Load state error:', err);
+    }
+  };
+
+  const handleReset = () => {
+    core.reset();
+  };
+
+  return (
+    <div className="emulator-screen">
+      <div className="emulator-header">
+        <h1>SNES Emulator</h1>
+        <div className="emulator-stats">
+          <span className="fps-counter">FPS: {fps}</span>
+          <span className="gamepad-status">
+            {isGamepadConnected ? '🎮 Gamepad Connected' : '⌨️ Keyboard'}
+          </span>
+        </div>
+      </div>
+
+      {error && (
+        <div className="error-message">
+          <strong>Error:</strong> {error}
+        </div>
+      )}
+
+      <div className="emulator-container">
+        <canvas
+          ref={canvasRef}
+          width={256}
+          height={224}
+          className="emulator-canvas"
+        />
+      </div>
+
+      <div className="emulator-controls">
+        <div className="control-group">
+          <button onClick={toggle} disabled={!isInitialized}>
+            {isRunning ? '⏸️ Pause' : '▶️ Play'}
+          </button>
+          <button onClick={handleReset} disabled={!isInitialized}>
+            🔄 Reset
+          </button>
+          <label className="file-upload-button">
+            📁 Load ROM
+            <input
+              type="file"
+              accept=".smc,.sfc"
+              onChange={handleFileUpload}
+              disabled={!isInitialized}
+            />
+          </label>
+        </div>
+
+        <div className="control-group">
+          <span>Save States:</span>
+          {[1, 2, 3, 4].map(slot => (
+            <div key={slot} className="save-state-buttons">
+              <button
+                onClick={() => handleSaveState(slot)}
+                disabled={!isInitialized}
+                title={`Save to slot ${slot}`}
+              >
+                💾 {slot}
+              </button>
+              <button
+                onClick={() => handleLoadState(slot)}
+                disabled={!isInitialized || !saveStates.has(slot)}
+                title={`Load from slot ${slot}`}
+              >
+                📂 {slot}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="emulator-info">
+        <div className="control-info">
+          <h3>Keyboard Controls</h3>
+          <div className="controls-grid">
+            <div><strong>D-Pad:</strong> Arrow Keys or WASD</div>
+            <div><strong>A Button:</strong> X</div>
+            <div><strong>B Button:</strong> Z</div>
+            <div><strong>X Button:</strong> V</div>
+            <div><strong>Y Button:</strong> C</div>
+            <div><strong>L Button:</strong> Q</div>
+            <div><strong>R Button:</strong> E</div>
+            <div><strong>Start:</strong> Enter</div>
+            <div><strong>Select:</strong> Shift</div>
+          </div>
+        </div>
+
+        <div className="button-state">
+          <h3>Button State</h3>
+          <div className="button-display">
+            Button Mask: 0x{buttons.toString(16).padStart(4, '0').toUpperCase()}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
