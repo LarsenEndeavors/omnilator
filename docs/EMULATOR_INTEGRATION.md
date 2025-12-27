@@ -2,7 +2,7 @@
 
 ## Current Status ✅
 
-The emulator now has a **fully functional LibRetro implementation**:
+The emulator now has a **fully functional LibRetro implementation with automatic fallback**:
 
 - ✅ Rendering loop working at 60 FPS
 - ✅ Input handling (keyboard and gamepad)
@@ -10,8 +10,25 @@ The emulator now has a **fully functional LibRetro implementation**:
 - ✅ Save state infrastructure
 - ✅ **LibRetro core integration** (implemented)
 - ✅ **ROM emulation support** (ready for WASM cores)
+- ✅ **Mock fallback mode** (graceful degradation)
 
-The `SnesCore` class now uses `LibRetroCore`, which implements the complete libretro API for loading and running SNES ROMs through WebAssembly cores.
+The `SnesCore` class now uses `LibRetroCore`, which implements the complete libretro API for loading and running SNES ROMs through WebAssembly cores. If the LibRetro core fails to load (network issues, CORS restrictions, missing files), it automatically falls back to `MockSnesCore` which provides a demo mode.
+
+## Important Note About Core Availability
+
+⚠️ **The LibRetro buildbot URL may not be accessible in all environments** due to:
+- Network restrictions or firewall rules
+- DNS resolution issues
+- CORS policies
+- Geographic restrictions
+
+**For production use, always host cores locally:**
+
+1. Download cores from: https://buildbot.libretro.com/stable/latest/emscripten/
+2. Place in your `public/cores/` directory
+3. Use local path: `new SnesCore('snes9x', '/cores/snes9x_libretro.js')`
+
+The emulator will automatically fall back to demo mode if the core cannot be loaded, displaying a clear warning banner with instructions.
 
 ## Implementation Complete
 
@@ -34,11 +51,16 @@ The implementation includes:
 ```typescript
 import { SnesCore } from './core/SnesCore';
 
-// Create core instance (defaults to snes9x)
+// Create core instance (defaults to snes9x, falls back to mock if unavailable)
 const core = new SnesCore();
 
-// Initialize the core
+// Initialize the core (will fall back to demo mode if core cannot be loaded)
 await core.initialize();
+
+// Check if running in mock mode
+if (core.isInMockMode()) {
+  console.warn('Running in demo mode - download and host a core for real emulation');
+}
 
 // Load a ROM
 const romData = new Uint8Array(/* ROM file data */);
@@ -52,6 +74,17 @@ setInterval(async () => {
   // Render frame and play audio
 }, 1000/60);
 ```
+
+### Mock Fallback Mode
+
+If the LibRetro core cannot be loaded (network issues, CORS, missing files), the emulator automatically falls back to `MockSnesCore`:
+
+- Displays a colorful gradient pattern with animated elements
+- Shows button press indicators for all SNES controller buttons
+- Provides placeholder audio
+- Displays a clear "DEMO MODE" banner on screen and in UI
+
+This ensures the application remains functional for development, testing, and demonstrations even without network access or hosted cores.
 
 ### Using Different Cores
 
