@@ -36,8 +36,14 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
     const init = async () => {
       try {
         await core.initialize();
-        await audioSystem.initialize(core);
         setIsInitialized(true);
+        
+        // Try to initialize audio system (non-blocking)
+        try {
+          await audioSystem.initialize(core);
+        } catch (audioErr) {
+          console.warn('Audio system initialization failed, continuing without audio:', audioErr);
+        }
         
         // If ROM data is provided, load it
         if (romData) {
