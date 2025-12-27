@@ -237,9 +237,10 @@ export class SnesCore implements IEmulatorCore {
       drawBox(centerX - buttonSize * 2, centerY, buttonSize, buttonSize / 2, 150, 150, 150);
     }
 
-    // Generate mock audio samples (simple sine wave)
+    // Generate mock audio samples (very quiet to avoid audio spikes in demo mode)
+    // In a real implementation, this would come from the WASM emulator
     for (let i = 0; i < this.audioBuffer.length; i++) {
-      this.audioBuffer[i] = Math.sin(time * 440 * Math.PI * 2 * i / 48000) * 0.1;
+      this.audioBuffer[i] = Math.sin(time * 440 * Math.PI * 2 * i / 48000) * 0.01;
     }
   }
 }

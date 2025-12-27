@@ -38,6 +38,8 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveStates, setSaveStates] = useState<Map<number, Uint8Array>>(new Map());
+  const [loadedRomName, setLoadedRomName] = useState<string | null>(null);
+  const [isLoadingRom, setIsLoadingRom] = useState(false);
 
   const { canvasRef, isRunning, fps, toggle } = useEmulator({
     core,
@@ -99,14 +101,21 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    setIsLoadingRom(true);
+    setError(null);
+
     try {
       const arrayBuffer = await file.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
       await core.loadROM(uint8Array);
+      setLoadedRomName(file.name);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load ROM');
       console.error('ROM load error:', err);
+      setLoadedRomName(null);
+    } finally {
+      setIsLoadingRom(false);
     }
   };
 
@@ -158,6 +167,18 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
         <strong>⚠️ Demo Mode:</strong> This is a test implementation showing input responsiveness. 
         Press buttons to see visual indicators. A real SNES emulator WASM module is needed for actual ROM playback.
       </div>
+
+      {loadedRomName && (
+        <div className="rom-status">
+          <strong>📄 ROM Loaded:</strong> {loadedRomName}
+        </div>
+      )}
+
+      {isLoadingRom && (
+        <div className="rom-loading">
+          <strong>⏳ Loading ROM...</strong>
+        </div>
+      )}
 
       <div className="emulator-container">
         <canvas
@@ -239,15 +260,18 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
         </div>
 
         <div className="button-state">
-          <h3>Button State</h3>
+          <h3>Button State (Debug Info)</h3>
           <div className="button-display">
             <div className="button-mask">
-              0x{buttons.toString(16).padStart(4, '0').toUpperCase()}
+              Hex Code: 0x{buttons.toString(16).padStart(4, '0').toUpperCase()}
             </div>
             <div className="button-names">
-              {getButtonNames(buttons).length > 0 
+              <strong>Pressed:</strong> {getButtonNames(buttons).length > 0 
                 ? getButtonNames(buttons).join(' + ')
-                : 'No buttons pressed'}
+                : 'None'}
+            </div>
+            <div className="button-help">
+              The hex code is a technical representation where each bit represents a button state.
             </div>
           </div>
         </div>
