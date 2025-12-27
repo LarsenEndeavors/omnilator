@@ -1,246 +1,299 @@
 import type { IEmulatorCore } from './IEmulatorCore';
+import { LibRetroCore } from './LibRetroCore';
 
 /**
- * Interface for WASM module functions
- * This defines the expected API of a SNES emulator WASM module.
- * In a real implementation, this would be provided by snes9x or similar.
- */
-interface WasmModule {
-  loadROM: (data: Uint8Array) => boolean;
-  runFrame: () => boolean;
-  getVideoBuffer: () => Uint8Array;
-  getAudioSamples: () => Float32Array;
-  setInput: (port: number, state: number) => void;
-  saveState: () => Uint8Array;
-  loadState: (state: Uint8Array) => void;
-  reset: () => void;
-}
-
-/**
- * SNES emulator core implementation wrapping Snes9x WASM
+ * SNES emulator core implementation using LibRetro
  * 
- * ⚠️ CURRENT STATUS: This is a demo/mock implementation.
+ * This class provides a SNES-specific wrapper around LibRetroCore, making it easy to
+ * instantiate a SNES emulator without knowing the details of LibRetro.
  * 
- * This class demonstrates the emulator infrastructure (rendering loop, input handling,
- * audio system, save states) but does not actually emulate SNES ROMs. It generates
- * a gradient pattern with button indicators to show that all systems are functional.
+ * The LibRetro architecture allows for loose coupling between the emulator frontend
+ * (this application) and the emulator core (snes9x, bsnes, etc.). This means:
  * 
- * For integrating a real SNES emulator, see docs/EMULATOR_INTEGRATION.md
+ * - Easy to swap between different SNES cores
+ * - Core updates don't require code changes
+ * - Can support multiple systems by using different cores
  * 
- * The architecture is designed to make it easy to swap this mock implementation
- * for a real WASM-based emulator without changing any other code.
+ * Implementation Strategy:
+ * 
+ * This class delegates all work to LibRetroCore, which handles the low-level
+ * details of:
+ * - WASM module loading and initialization
+ * - Memory management between JS and WASM
+ * - Pixel format conversion (RGB565/XRGB8888 → RGBA)
+ * - Audio sample format conversion (int16 → float32)
+ * - LibRetro callback implementation
+ * 
+ * Usage:
+ * ```typescript
+ * const core = new SnesCore();
+ * await core.initialize();
+ * await core.loadROM(romData);
+ * 
+ * // Run at 60 FPS
+ * setInterval(async () => {
+ *   await core.runFrame();
+ *   const frame = core.getBuffer();
+ *   const audio = core.getAudioSamples();
+ *   // Render frame and play audio
+ * }, 1000/60);
+ * ```
+ * 
+ * Core Selection:
+ * 
+ * By default, this uses the 'snes9x' core from the LibRetro buildbot.
+ * You can customize the core by passing a different name or URL to the constructor:
+ * 
+ * ```typescript
+ * // Use bsnes core instead
+ * const core = new SnesCore('bsnes');
+ * 
+ * // Use a locally hosted core
+ * const core = new SnesCore('snes9x', '/cores/snes9x_libretro.js');
+ * ```
+ * 
+ * Available SNES Cores:
+ * - snes9x: Fast, accurate, recommended for most games
+ * - bsnes: Maximum accuracy, higher CPU requirements
+ * - mednafen_snes: Good balance of speed and accuracy
+ * 
+ * For production use, download cores from https://buildbot.libretro.com/stable/
+ * and host them in your public/ directory rather than loading from the CDN.
  */
 export class SnesCore implements IEmulatorCore {
-  private wasmModule: WasmModule | null = null;
-  private width = 256;
-  private height = 224;
-  private audioBuffer: Float32Array = new Float32Array(2048);
-  private videoBuffer: Uint8Array = new Uint8Array(this.width * this.height * 4);
-  private inputState: number[] = [0, 0, 0, 0]; // Support 4 controller ports (0-3)
-  private isInitialized = false;
+  private core: LibRetroCore;
 
-  constructor() {
-    // Initialize will happen when WASM module is loaded
+  /**
+   * Create a new SNES emulator core
+   * 
+   * @param coreName - Name of the LibRetro core to use (default: 'snes9x')
+   * @param coreUrl - Optional custom URL for the core. If not provided, loads from LibRetro buildbot.
+   * 
+   * @example
+   * ```typescript
+   * // Use default snes9x core from buildbot
+   * const core = new SnesCore();
+   * 
+   * // Use bsnes core for maximum accuracy
+   * const core = new SnesCore('bsnes');
+   * 
+   * // Use locally hosted core
+   * const core = new SnesCore('snes9x', '/cores/snes9x_libretro.js');
+   * ```
+   */
+  constructor(coreName: string = 'snes9x', coreUrl?: string) {
+    this.core = new LibRetroCore(coreName, coreUrl);
   }
 
   /**
-   * Initialize the WASM module
+   * Initialize the emulator core
+   * 
+   * This loads the LibRetro WASM module and sets up all callbacks.
+   * Must be called before any other operations.
+   * 
+   * @throws Error if initialization fails
    */
   async initialize(): Promise<void> {
-    try {
-      // In a real implementation, this would load the Snes9x WASM module
-      // For now, we'll create a mock implementation
-      this.wasmModule = {
-        loadROM: (data: Uint8Array) => {
-          console.log('Mock: ROM loaded', data.length, 'bytes');
-          return true;
-        },
-        runFrame: () => {
-          // Simulate frame execution
-          this.generateMockFrame();
-          return true;
-        },
-        getVideoBuffer: () => this.videoBuffer,
-        getAudioSamples: () => this.audioBuffer,
-        setInput: (port: number, state: number) => {
-          this.inputState[port] = state;
-        },
-        saveState: () => new Uint8Array(1024),
-        loadState: (state: Uint8Array) => {
-          console.log('Mock: State loaded', state.length, 'bytes');
-        },
-        reset: () => {
-          console.log('Mock: Emulator reset');
-        },
-      };
-      this.isInitialized = true;
-    } catch (error) {
-      console.error('Failed to initialize WASM module:', error);
-      throw error;
-    }
-  }
-
-  async loadROM(romData: Uint8Array): Promise<void> {
-    if (!this.isInitialized) {
-      await this.initialize();
-    }
-    
-    if (!this.wasmModule || !this.wasmModule.loadROM(romData)) {
-      throw new Error('Failed to load ROM');
-    }
-  }
-
-  async runFrame(): Promise<void> {
-    if (!this.wasmModule) {
-      throw new Error('Emulator not initialized');
-    }
-    this.wasmModule.runFrame();
-  }
-
-  getBuffer(): ImageData {
-    const imageData = new ImageData(this.width, this.height);
-    imageData.data.set(this.videoBuffer);
-    return imageData;
-  }
-
-  getAudioSamples(): Float32Array {
-    return this.audioBuffer;
-  }
-
-  setInput(port: number, buttons: number): void {
-    if (port < 0 || port > 3) {
-      throw new Error(`Invalid port number: ${port}. Must be 0-3 for 4-player support.`);
-    }
-    if (this.wasmModule) {
-      this.wasmModule.setInput(port, buttons);
-    }
-    this.inputState[port] = buttons;
-  }
-
-  saveState(): Uint8Array {
-    if (!this.wasmModule) {
-      throw new Error('Emulator not initialized');
-    }
-    return this.wasmModule.saveState();
-  }
-
-  loadState(state: Uint8Array): void {
-    if (!this.wasmModule) {
-      throw new Error('Emulator not initialized');
-    }
-    this.wasmModule.loadState(state);
-  }
-
-  reset(): void {
-    if (this.wasmModule) {
-      this.wasmModule.reset();
-    }
-  }
-
-  cleanup(): void {
-    this.wasmModule = null;
-    this.isInitialized = false;
+    await this.core.initialize();
   }
 
   /**
-   * Generate a mock frame for testing purposes
-   * Creates a visual pattern that responds to controller input to demonstrate
-   * that the emulator loop and input handling are working correctly.
+   * Load a ROM file into the emulator
    * 
-   * NOTE: This is a placeholder. A real implementation requires integrating
-   * a SNES emulator WASM module (e.g., snes9x compiled to WebAssembly).
+   * Supports .smc and .sfc ROM formats. The ROM data is copied into WASM memory
+   * and passed to the core's retro_load_game() function.
+   * 
+   * @param romData - The ROM file data as a Uint8Array
+   * @throws Error if ROM fails to load (invalid format, unsupported mapper, etc.)
    */
-  private generateMockFrame(): void {
-    const time = Date.now() / 1000;
-    
-    // Base gradient background
-    for (let y = 0; y < this.height; y++) {
-      for (let x = 0; x < this.width; x++) {
-        const index = (y * this.width + x) * 4;
-        const r = Math.floor(128 + 127 * Math.sin(x / 32 + time));
-        const g = Math.floor(128 + 127 * Math.sin(y / 32 + time));
-        const b = Math.floor(128 + 127 * Math.sin((x + y) / 32 + time));
-        
-        this.videoBuffer[index] = r;
-        this.videoBuffer[index + 1] = g;
-        this.videoBuffer[index + 2] = b;
-        this.videoBuffer[index + 3] = 255;
-      }
-    }
+  async loadROM(romData: Uint8Array): Promise<void> {
+    await this.core.loadROM(romData);
+  }
 
-    // Draw input indicators to show buttons are being registered
-    const drawBox = (x: number, y: number, width: number, height: number, r: number, g: number, b: number) => {
-      for (let dy = 0; dy < height; dy++) {
-        for (let dx = 0; dx < width; dx++) {
-          const px = x + dx;
-          const py = y + dy;
-          if (px >= 0 && px < this.width && py >= 0 && py < this.height) {
-            const index = (py * this.width + px) * 4;
-            this.videoBuffer[index] = r;
-            this.videoBuffer[index + 1] = g;
-            this.videoBuffer[index + 2] = b;
-            this.videoBuffer[index + 3] = 255;
-          }
-        }
-      }
-    };
+  /**
+   * Execute one frame of SNES emulation
+   * 
+   * This runs approximately 16.67ms of emulated time (1/60th of a second).
+   * During execution, the core will:
+   * - Execute CPU instructions
+   * - Render one video frame
+   * - Generate audio samples
+   * - Read controller input
+   * 
+   * The frame and audio data can be retrieved after this call using
+   * getBuffer() and getAudioSamples().
+   * 
+   * @throws Error if emulator is not initialized or no ROM is loaded
+   */
+  async runFrame(): Promise<void> {
+    await this.core.runFrame();
+  }
 
-    // Button indicators
-    const buttonSize = 20;
-    const padding = 10;
-    const yPos = padding;
+  /**
+   * Get the current video frame
+   * 
+   * Returns the most recently rendered frame as an ImageData object ready for
+   * drawing to a canvas. The resolution is typically 256x224 for NTSC games
+   * or 256x240 for some games that use overscan.
+   * 
+   * The pixel format is RGBA8888 (4 bytes per pixel, 8 bits per channel).
+   * 
+   * @returns ImageData containing the current frame
+   */
+  getBuffer(): ImageData {
+    return this.core.getBuffer();
+  }
 
-    // D-Pad indicators
-    if (this.inputState[0] & (1 << 4)) { // UP
-      drawBox(this.width / 2 - buttonSize / 2, yPos, buttonSize, buttonSize, 255, 255, 0);
-    }
-    if (this.inputState[0] & (1 << 5)) { // DOWN
-      drawBox(this.width / 2 - buttonSize / 2, yPos + buttonSize * 2, buttonSize, buttonSize, 255, 255, 0);
-    }
-    if (this.inputState[0] & (1 << 6)) { // LEFT
-      drawBox(this.width / 2 - buttonSize * 1.5, yPos + buttonSize, buttonSize, buttonSize, 255, 255, 0);
-    }
-    if (this.inputState[0] & (1 << 7)) { // RIGHT
-      drawBox(this.width / 2 + buttonSize / 2, yPos + buttonSize, buttonSize, buttonSize, 255, 255, 0);
-    }
+  /**
+   * Get audio samples from the last frame
+   * 
+   * Returns the audio samples generated during the last runFrame() call.
+   * The samples are interleaved stereo float32 values in the range [-1, 1].
+   * 
+   * For SNES, the sample rate is typically ~32040 Hz, so each frame generates
+   * approximately 534 samples (267 per channel).
+   * 
+   * Format: [L0, R0, L1, R1, L2, R2, ...]
+   * 
+   * @returns Float32Array containing interleaved stereo audio samples
+   */
+  getAudioSamples(): Float32Array {
+    return this.core.getAudioSamples();
+  }
 
-    // Action buttons (right side)
-    const buttonX = this.width - padding - buttonSize * 3;
-    if (this.inputState[0] & (1 << 0)) { // B
-      drawBox(buttonX, yPos + buttonSize, buttonSize, buttonSize, 255, 0, 0);
-    }
-    if (this.inputState[0] & (1 << 8)) { // A
-      drawBox(buttonX + buttonSize * 2, yPos + buttonSize, buttonSize, buttonSize, 0, 255, 0);
-    }
-    if (this.inputState[0] & (1 << 1)) { // Y
-      drawBox(buttonX, yPos, buttonSize, buttonSize, 0, 0, 255);
-    }
-    if (this.inputState[0] & (1 << 9)) { // X
-      drawBox(buttonX + buttonSize * 2, yPos, buttonSize, buttonSize, 0, 255, 255);
-    }
+  /**
+   * Set controller input state
+   * 
+   * Updates the button state for a specific controller port. The SNES supports
+   * up to 4 controllers (with a multitap accessory).
+   * 
+   * The button bitmask uses the SnesButton constants from IEmulatorCore:
+   * - Bit 0: B button
+   * - Bit 1: Y button
+   * - Bit 2: SELECT button
+   * - Bit 3: START button
+   * - Bit 4: UP on D-pad
+   * - Bit 5: DOWN on D-pad
+   * - Bit 6: LEFT on D-pad
+   * - Bit 7: RIGHT on D-pad
+   * - Bit 8: A button
+   * - Bit 9: X button
+   * - Bit 10: L button
+   * - Bit 11: R button
+   * 
+   * @param port - Controller port (0-3)
+   * @param buttons - Button state bitmask
+   * @throws Error if port is invalid
+   * 
+   * @example
+   * ```typescript
+   * import { SnesButton } from './IEmulatorCore';
+   * 
+   * // Press A and B buttons on port 1
+   * core.setInput(0, SnesButton.A | SnesButton.B);
+   * 
+   * // Press START on port 2
+   * core.setInput(1, SnesButton.START);
+   * 
+   * // Release all buttons on port 1
+   * core.setInput(0, 0);
+   * ```
+   */
+  setInput(port: number, buttons: number): void {
+    this.core.setInput(port, buttons);
+  }
 
-    // Shoulder buttons
-    if (this.inputState[0] & (1 << 10)) { // L
-      drawBox(padding, padding, buttonSize * 2, buttonSize, 200, 200, 200);
-    }
-    if (this.inputState[0] & (1 << 11)) { // R
-      drawBox(this.width - padding - buttonSize * 2, padding, buttonSize * 2, buttonSize, 200, 200, 200);
-    }
+  /**
+   * Save the current emulator state
+   * 
+   * Creates a complete snapshot of the emulator's state, including:
+   * - CPU state (registers, program counter, flags)
+   * - Memory (Work RAM, Video RAM, Audio RAM)
+   * - PPU state (scanline, sprites, backgrounds)
+   * - APU state (sound channels, DSP registers)
+   * - Cartridge state (SRAM, special chips)
+   * 
+   * Save states are typically 150-300 KB depending on the game.
+   * 
+   * Save states are tied to the specific core and ROM. Loading a state
+   * saved with a different core or ROM may cause crashes or corruption.
+   * 
+   * @returns Uint8Array containing the serialized state
+   * @throws Error if save states are not supported or emulator is not initialized
+   */
+  saveState(): Uint8Array {
+    return this.core.saveState();
+  }
 
-    // Start/Select
-    const centerX = this.width / 2;
-    const centerY = this.height / 2;
-    if (this.inputState[0] & (1 << 3)) { // START
-      drawBox(centerX + buttonSize, centerY, buttonSize, buttonSize / 2, 255, 255, 255);
-    }
-    if (this.inputState[0] & (1 << 2)) { // SELECT
-      drawBox(centerX - buttonSize * 2, centerY, buttonSize, buttonSize / 2, 150, 150, 150);
-    }
+  /**
+   * Load a previously saved state
+   * 
+   * Restores the emulator to exactly the state when saveState() was called.
+   * This is instantaneous and allows for:
+   * - Quick save/load functionality
+   * - Rewind feature (save states every frame)
+   * - Tool-assisted speedrun (TAS) creation
+   * - Testing specific game scenarios
+   * 
+   * ⚠️ Warning: The state must have been created with:
+   * - The same core (snes9x state won't work with bsnes)
+   * - The same ROM
+   * - The same core version (may be incompatible across updates)
+   * 
+   * @param state - Save state data from saveState()
+   * @throws Error if state is invalid or incompatible
+   */
+  loadState(state: Uint8Array): void {
+    this.core.loadState(state);
+  }
 
-    // Generate mock audio samples (very quiet to avoid audio spikes in demo mode)
-    // In a real implementation, this would come from the WASM emulator
-    for (let i = 0; i < this.audioBuffer.length; i++) {
-      this.audioBuffer[i] = Math.sin(time * 440 * Math.PI * 2 * i / 48000) * 0.01;
-    }
+  /**
+   * Reset the emulator
+   * 
+   * Equivalent to pressing the reset button on a real SNES console.
+   * This will:
+   * - Reset the CPU to the initial vector
+   * - Clear all RAM
+   * - Reset PPU and APU to power-on state
+   * - Preserve cartridge SRAM (battery-backed save data)
+   * 
+   * The ROM remains loaded after reset.
+   */
+  reset(): void {
+    this.core.reset();
+  }
+
+  /**
+   * Clean up resources
+   * 
+   * Shuts down the emulator and frees all resources. After calling this,
+   * the instance cannot be used anymore.
+   * 
+   * Should be called when:
+   * - Unmounting the emulator component
+   * - Loading a different core
+   * - Closing the application
+   */
+  cleanup(): void {
+    this.core.cleanup();
+  }
+
+  /**
+   * Get information about the core
+   * 
+   * Returns metadata about the loaded core, including its name and version.
+   * This can be useful for debugging or displaying in the UI.
+   * 
+   * @returns Object with core name and version
+   * 
+   * @example
+   * ```typescript
+   * const info = core.getCoreInfo();
+   * console.log(`Using ${info.name} version ${info.version}`);
+   * // Output: "Using Snes9x version 1.60"
+   * ```
+   */
+  getCoreInfo(): { name: string; version: string } {
+    return this.core.getCoreInfo();
   }
 }
