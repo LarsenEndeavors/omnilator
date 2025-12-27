@@ -36,7 +36,7 @@ export class SnesCore implements IEmulatorCore {
   private height = 224;
   private audioBuffer: Float32Array = new Float32Array(2048);
   private videoBuffer: Uint8Array = new Uint8Array(this.width * this.height * 4);
-  private inputState: number[] = [0, 0];
+  private inputState: number[] = [0, 0, 0, 0]; // Support 4 controller ports (0-3)
   private isInitialized = false;
 
   constructor() {
@@ -108,8 +108,8 @@ export class SnesCore implements IEmulatorCore {
   }
 
   setInput(port: number, buttons: number): void {
-    if (port < 0 || port > 1) {
-      throw new Error('Invalid port number');
+    if (port < 0 || port > 3) {
+      throw new Error(`Invalid port number: ${port}. Must be 0-3 for 4-player support.`);
     }
     if (this.wasmModule) {
       this.wasmModule.setInput(port, buttons);
