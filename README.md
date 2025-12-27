@@ -57,11 +57,21 @@ Standard gamepad mapping is supported with automatic detection.
 ### Core Components
 
 - **IEmulatorCore**: Interface defining emulator operations (loadROM, runFrame, getBuffer, etc.)
-- **SnesCore**: Implementation wrapping Snes9x WASM module
+- **SnesCore**: Implementation wrapping Snes9x WASM module (currently in demo mode)
 - **EmulatorScreen**: Main React component with canvas and controls
 - **useEmulator**: Custom hook managing the rendering loop
 - **useInput**: Custom hook for keyboard and gamepad input
 - **AudioSystem**: WebAudio-based audio streaming system
+
+### Current Status
+
+**⚠️ The emulator is currently in demo/test mode.** It demonstrates that all the infrastructure works (rendering loop, input handling, audio system, save states) but does not actually emulate SNES ROMs. 
+
+To integrate a real SNES emulator, see **[docs/EMULATOR_INTEGRATION.md](docs/EMULATOR_INTEGRATION.md)** for a comprehensive guide on:
+- Why a mock implementation is used
+- Integration options (EmulatorJS, building from source, RetroArch cores, CDN)
+- Implementation checklist
+- Resources and next steps
 
 ### Project Structure
 

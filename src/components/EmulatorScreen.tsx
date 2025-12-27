@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { SnesCore } from '../core/SnesCore';
+import { SnesButton } from '../core/IEmulatorCore';
 import { useEmulator } from '../hooks/useEmulator';
 import { useInput } from '../hooks/useInput';
 import { AudioSystem } from '../audio/AudioSystem';
@@ -9,12 +10,36 @@ interface EmulatorScreenProps {
   romData?: Uint8Array;
 }
 
+/**
+ * Convert button mask to human-readable button names
+ * @param buttonMask - The button state bitmask
+ * @returns Array of pressed button names
+ */
+const getButtonNames = (buttonMask: number): string[] => {
+  const names: string[] = [];
+  if (buttonMask & SnesButton.UP) names.push('UP');
+  if (buttonMask & SnesButton.DOWN) names.push('DOWN');
+  if (buttonMask & SnesButton.LEFT) names.push('LEFT');
+  if (buttonMask & SnesButton.RIGHT) names.push('RIGHT');
+  if (buttonMask & SnesButton.A) names.push('A');
+  if (buttonMask & SnesButton.B) names.push('B');
+  if (buttonMask & SnesButton.X) names.push('X');
+  if (buttonMask & SnesButton.Y) names.push('Y');
+  if (buttonMask & SnesButton.L) names.push('L');
+  if (buttonMask & SnesButton.R) names.push('R');
+  if (buttonMask & SnesButton.START) names.push('START');
+  if (buttonMask & SnesButton.SELECT) names.push('SELECT');
+  return names;
+};
+
 export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
   const [core] = useState(() => new SnesCore());
   const [audioSystem] = useState(() => new AudioSystem());
   const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveStates, setSaveStates] = useState<Map<number, Uint8Array>>(new Map());
+  const [loadedRomName, setLoadedRomName] = useState<string | null>(null);
+  const [isLoadingRom, setIsLoadingRom] = useState(false);
 
   const { canvasRef, isRunning, fps, toggle } = useEmulator({
     core,
@@ -76,14 +101,21 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    setIsLoadingRom(true);
+    setError(null);
+
     try {
       const arrayBuffer = await file.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
       await core.loadROM(uint8Array);
+      setLoadedRomName(file.name);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load ROM');
       console.error('ROM load error:', err);
+      setLoadedRomName(null);
+    } finally {
+      setIsLoadingRom(false);
     }
   };
 
@@ -131,6 +163,23 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
         </div>
       )}
 
+      <div className="demo-notice">
+        <strong>⚠️ Demo Mode:</strong> This is a test implementation showing input responsiveness. 
+        Press buttons to see visual indicators. A real SNES emulator WASM module is needed for actual ROM playback.
+      </div>
+
+      {loadedRomName && (
+        <div className="rom-status">
+          <strong>📄 ROM Loaded:</strong> {loadedRomName}
+        </div>
+      )}
+
+      {isLoadingRom && (
+        <div className="rom-loading">
+          <strong>⏳ Loading ROM...</strong>
+        </div>
+      )}
+
       <div className="emulator-container">
         <canvas
           ref={canvasRef}
@@ -159,26 +208,38 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
           </label>
         </div>
 
-        <div className="control-group">
-          <span>Save States:</span>
-          {[1, 2, 3, 4].map(slot => (
-            <div key={slot} className="save-state-buttons">
-              <button
-                onClick={() => handleSaveState(slot)}
-                disabled={!isInitialized}
-                title={`Save to slot ${slot}`}
-              >
-                💾 {slot}
-              </button>
-              <button
-                onClick={() => handleLoadState(slot)}
-                disabled={!isInitialized || !saveStates.has(slot)}
-                title={`Load from slot ${slot}`}
-              >
-                📂 {slot}
-              </button>
-            </div>
-          ))}
+        <div className="save-states-section">
+          <h4>Save States</h4>
+          <div className="save-states-grid">
+            {[1, 2, 3, 4].map(slot => (
+              <div key={slot} className={`save-state-slot ${saveStates.has(slot) ? 'has-save' : ''}`}>
+                <div className="slot-header">
+                  <span className="slot-number">Slot {slot}</span>
+                  <span className="slot-status">
+                    {saveStates.has(slot) ? '✓ Saved' : 'Empty'}
+                  </span>
+                </div>
+                <div className="slot-actions">
+                  <button
+                    onClick={() => handleSaveState(slot)}
+                    disabled={!isInitialized}
+                    title={`Save to slot ${slot}`}
+                    className="save-button"
+                  >
+                    💾 Save
+                  </button>
+                  <button
+                    onClick={() => handleLoadState(slot)}
+                    disabled={!isInitialized || !saveStates.has(slot)}
+                    title={`Load from slot ${slot}`}
+                    className="load-button"
+                  >
+                    📂 Load
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -199,9 +260,19 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
         </div>
 
         <div className="button-state">
-          <h3>Button State</h3>
+          <h3>Button State (Debug Info)</h3>
           <div className="button-display">
-            Button Mask: 0x{buttons.toString(16).padStart(4, '0').toUpperCase()}
+            <div className="button-mask">
+              Hex Code: 0x{buttons.toString(16).padStart(4, '0').toUpperCase()}
+            </div>
+            <div className="button-names">
+              <strong>Pressed:</strong> {getButtonNames(buttons).length > 0 
+                ? getButtonNames(buttons).join(' + ')
+                : 'None'}
+            </div>
+            <div className="button-help">
+              The hex code is a technical representation where each bit represents a button state.
+            </div>
           </div>
         </div>
       </div>

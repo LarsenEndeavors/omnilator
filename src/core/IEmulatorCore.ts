@@ -29,7 +29,7 @@ export interface IEmulatorCore {
 
   /**
    * Set controller input state
-   * @param port - Controller port (0 or 1)
+   * @param port - Controller port (0-3 for standard 4-player support)
    * @param buttons - Button state bitmask
    */
   setInput(port: number, buttons: number): void;
