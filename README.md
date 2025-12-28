@@ -1,11 +1,40 @@
-# Omnilator - Web SNES Emulator
+# Omnilator - Browser-Based Multiplayer Emulator
 
-A browser-based SNES emulator built with React, TypeScript, and Vite, powered by LibRetro cores.
+A browser-based multiplayer emulator platform enabling users to play classic SNES games from anywhere. One user hosts the game session, others join and play together in real-time. All functionality runs entirely in modern web browsers with no installation required.
+
+## 📚 Project Documentation
+
+**New to the project?** Start here:
+
+- **[Quick Start Guide](docs/QUICK_START_GUIDE.md)** - Get oriented and start working on tasks
+- **[Project Roadmap](docs/PROJECT_ROADMAP.md)** - Strategic overview and development phases
+- **[Task Breakdown](docs/TASK_BREAKDOWN.md)** - Detailed task-by-task implementation guide
+
+**Technical Documentation**:
+- [Emulator Integration Guide](docs/EMULATOR_INTEGRATION.md)
+- [LibRetro Implementation Details](docs/LIBRETRO_IMPLEMENTATION.md)
+
+## 🎯 Current Status
+
+### MVP Goal
+Browser-based SNES emulator with multiplayer support:
+- ✅ One device hosts the game session
+- ✅ Other devices join and play remotely
+- ✅ Real-time video/audio streaming
+- ✅ Input synchronization across devices
+- ✅ No installation required
+
+### Development Phase
+**Phase 1: snes9xWASM Integration** (In Progress)
+
+We're currently integrating the actual snes9x2005-wasm emulator core to replace the mock implementation. The WASM source is located in `public/snes/core/snes9x2005-wasm-master/`.
+
+See the [Project Roadmap](docs/PROJECT_ROADMAP.md) for the complete development plan.
 
 ## Issues
 
-- Libretro Implementation Failed, have packaged the snes9x wasm package in `src/assets/snes/core/snes9x2005-wasm-master/`
-  - Side Note: Included 4 .smc Roms in `src/assets/snes/test_roms/`
+- Libretro Implementation Failed, have packaged the snes9x wasm package in `public/snes/core/snes9x2005-wasm-master/`
+  - Side Note: Included 4 .smc Roms in `public/snes/test_roms/`
 
 ## Features
 
