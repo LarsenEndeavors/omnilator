@@ -1,0 +1,466 @@
+{
+  "project": {
+    "name": "Snes9xWasm Implementation",
+    "repository": "LarsenEndeavors/omnilator",
+    "assignee": "LarsenEndeavors",
+    "milestone": "Snes9xWasm Implementation",
+    "duration": "6 weeks",
+    "totalHours": 120
+  },
+  "labels": [
+    "enhancement",
+    "snes9x",
+    "core",
+    "sprint-1",
+    "sprint-2",
+    "sprint-3",
+    "sprint-4",
+    "sprint-5",
+    "sprint-6",
+    "foundation",
+    "implementation",
+    "testing",
+    "documentation",
+    "typescript"
+  ],
+  "tasks": [
+    {
+      "id": "SNES-001",
+      "sprint": 1,
+      "title": "Set Up Emscripten Build Environment",
+      "labels": ["enhancement", "snes9x", "core", "sprint-1", "foundation"],
+      "timeEstimate": "2h",
+      "prerequisites": [],
+      "objective": "Install and configure Emscripten SDK for building WebAssembly modules.",
+      "acceptanceCriteria": [
+        "`emcc --version` shows 3.1.51",
+        "Can compile simple C program to WASM",
+        "CI workflow includes Emscripten setup",
+        "Documentation updated with installation steps"
+      ]
+    },
+    {
+      "id": "SNES-002",
+      "sprint": 1,
+      "title": "Build snes9x2005-wasm from Source",
+      "labels": ["enhancement", "snes9x", "core", "sprint-1", "foundation"],
+      "timeEstimate": "1h",
+      "prerequisites": ["SNES-001"],
+      "objective": "Compile snes9x2005-wasm using Emscripten to produce WASM and JavaScript glue code.",
+      "acceptanceCriteria": [
+        "Build completes without errors",
+        "`snes9x_2005.js` exists (~100-500KB)",
+        "`snes9x_2005.wasm` exists (~1-3MB)",
+        "Build is reproducible"
+      ]
+    },
+    {
+      "id": "SNES-003",
+      "sprint": 1,
+      "title": "Create TypeScript Module Interface",
+      "labels": ["enhancement", "snes9x", "core", "sprint-1", "foundation", "typescript"],
+      "timeEstimate": "3h",
+      "prerequisites": ["SNES-002"],
+      "objective": "Define TypeScript interfaces for the snes9x2005-wasm module exports and memory structures.",
+      "acceptanceCriteria": [
+        "All interfaces defined and exported",
+        "TypeScript compiles without errors",
+        "JSDoc comments complete",
+        "Matches actual WASM exports",
+        "No `any` types used"
+      ]
+    },
+    {
+      "id": "SNES-004",
+      "sprint": 1,
+      "title": "Create Mock WASM Module",
+      "labels": ["enhancement", "snes9x", "core", "sprint-1", "foundation", "testing"],
+      "timeEstimate": "4h",
+      "prerequisites": ["SNES-003"],
+      "objective": "Create a mock implementation of Snes9xWasmModule for unit testing without real WASM dependencies.",
+      "acceptanceCriteria": [
+        "MockSnes9xWasmModule implements Snes9xWasmModule interface",
+        "All methods mocked with vitest `vi.fn()`",
+        "Mock behaviors are controllable for testing",
+        "Mock data (video, audio) is realistic",
+        "Helper methods for test scenarios",
+        "Documentation complete"
+      ]
+    },
+    {
+      "id": "SNES-005",
+      "sprint": 1,
+      "title": "Create Snes9xWasmCore Skeleton",
+      "labels": ["enhancement", "snes9x", "core", "sprint-1", "foundation"],
+      "timeEstimate": "2h",
+      "prerequisites": ["SNES-003", "SNES-004"],
+      "objective": "Create the skeleton structure for Snes9xWasmCore class that implements IEmulatorCore interface.",
+      "acceptanceCriteria": [
+        "Snes9xWasmCore class created",
+        "Implements IEmulatorCore interface",
+        "All methods have skeleton implementations",
+        "TypeScript compiles without errors",
+        "Basic tests pass",
+        "JSDoc comments complete"
+      ]
+    },
+    {
+      "id": "SNES-006",
+      "sprint": 2,
+      "title": "Implement Core Initialization",
+      "labels": ["enhancement", "snes9x", "core", "sprint-2", "implementation"],
+      "timeEstimate": "6h",
+      "prerequisites": ["SNES-005"],
+      "objective": "Implement the `initialize()` method to load the WASM module and set up all LibRetro callbacks.",
+      "acceptanceCriteria": [
+        "WASM module loads successfully",
+        "Module factory correctly configured",
+        "retro_init() called",
+        "All callbacks registered",
+        "Error handling for load failures",
+        "Console logging for debugging",
+        "Tests pass"
+      ]
+    },
+    {
+      "id": "SNES-007",
+      "sprint": 2,
+      "title": "Implement ROM Loading",
+      "labels": ["enhancement", "snes9x", "core", "sprint-2", "implementation"],
+      "timeEstimate": "6h",
+      "prerequisites": ["SNES-006"],
+      "objective": "Implement `loadROM()` to copy ROM data to WASM memory and initialize the game.",
+      "acceptanceCriteria": [
+        "ROM data validated (size checks)",
+        ".smc header detected and removed",
+        "ROM copied to WASM memory correctly",
+        "retro_load_game() succeeds",
+        "System info retrieved",
+        "Video buffer initialized with correct size",
+        "Memory freed properly",
+        "Error handling for all failure modes",
+        "Tests pass"
+      ]
+    },
+    {
+      "id": "SNES-008",
+      "sprint": 2,
+      "title": "Implement Frame Execution",
+      "labels": ["enhancement", "snes9x", "core", "sprint-2", "implementation"],
+      "timeEstimate": "4h",
+      "prerequisites": ["SNES-007"],
+      "objective": "Implement `runFrame()` to execute one frame of emulation and manage frame state.",
+      "acceptanceCriteria": [
+        "runFrame() executes without errors",
+        "retro_run() called correctly",
+        "Audio buffer reset each frame",
+        "Frame count increments",
+        "Tests pass"
+      ]
+    },
+    {
+      "id": "SNES-009",
+      "sprint": 2,
+      "title": "Implement Video Callbacks",
+      "labels": ["enhancement", "snes9x", "core", "sprint-2", "implementation"],
+      "timeEstimate": "8h",
+      "prerequisites": ["SNES-008"],
+      "objective": "Implement video refresh callback with pixel format conversion (RGB565, XRGB8888, RGB1555 to RGBA).",
+      "acceptanceCriteria": [
+        "Video callback handles all pixel formats",
+        "RGB565 to RGBA conversion correct",
+        "XRGB8888 to RGBA conversion correct",
+        "RGB1555 to RGBA conversion correct",
+        "Video buffer updated correctly",
+        "Dimensions handled correctly",
+        "Pitch (stride) handled correctly",
+        "Tests pass for all formats"
+      ]
+    },
+    {
+      "id": "SNES-010",
+      "sprint": 2,
+      "title": "Implement Audio Callbacks",
+      "labels": ["enhancement", "snes9x", "core", "sprint-2", "implementation"],
+      "timeEstimate": "6h",
+      "prerequisites": ["SNES-008"],
+      "objective": "Implement audio sample callbacks with int16 to float32 conversion.",
+      "acceptanceCriteria": [
+        "Audio batch callback implemented",
+        "Int16 to Float32 conversion correct",
+        "Stereo interleaving correct",
+        "Sample count tracking",
+        "Buffer overflow handling",
+        "Tests pass"
+      ]
+    },
+    {
+      "id": "SNES-011",
+      "sprint": 3,
+      "title": "Implement Input Handling",
+      "labels": ["enhancement", "snes9x", "core", "sprint-3", "implementation"],
+      "timeEstimate": "4h",
+      "prerequisites": ["SNES-008"],
+      "objective": "Implement input state callback to pass controller input to the core.",
+      "acceptanceCriteria": [
+        "setInput() stores button states",
+        "Input state callback returns correct values",
+        "All 4 ports supported",
+        "All 12 buttons supported",
+        "Bitmask calculations correct",
+        "Tests pass for all combinations"
+      ]
+    },
+    {
+      "id": "SNES-012",
+      "sprint": 3,
+      "title": "Implement Save States",
+      "labels": ["enhancement", "snes9x", "core", "sprint-3", "implementation"],
+      "timeEstimate": "6h",
+      "prerequisites": ["SNES-008"],
+      "objective": "Implement saveState() and loadState() for save state functionality.",
+      "acceptanceCriteria": [
+        "saveState() creates valid data",
+        "loadState() restores correctly",
+        "Save/load round-trip works",
+        "Memory management correct",
+        "Error handling complete",
+        "Tests pass"
+      ]
+    },
+    {
+      "id": "SNES-013",
+      "sprint": 3,
+      "title": "Implement Reset Functionality",
+      "labels": ["enhancement", "snes9x", "core", "sprint-3", "implementation"],
+      "timeEstimate": "2h",
+      "prerequisites": ["SNES-008"],
+      "objective": "Implement reset() to restart emulation.",
+      "acceptanceCriteria": [
+        "reset() calls retro_reset()",
+        "State cleared correctly",
+        "ROM preserved",
+        "Tests pass"
+      ]
+    },
+    {
+      "id": "SNES-014",
+      "sprint": 3,
+      "title": "Implement Cleanup",
+      "labels": ["enhancement", "snes9x", "core", "sprint-3", "implementation"],
+      "timeEstimate": "3h",
+      "prerequisites": ["SNES-001 through SNES-013"],
+      "objective": "Implement cleanup() to properly free all resources.",
+      "acceptanceCriteria": [
+        "cleanup() frees all memory",
+        "retro_deinit() called",
+        "Buffers nullified",
+        "Double cleanup safe",
+        "Tests pass"
+      ]
+    },
+    {
+      "id": "SNES-015",
+      "sprint": 4,
+      "title": "Update SnesCore Integration",
+      "labels": ["enhancement", "snes9x", "core", "sprint-4", "implementation"],
+      "timeEstimate": "4h",
+      "prerequisites": ["SNES-014"],
+      "objective": "Update SnesCore to use Snes9xWasmCore as primary implementation with fallback chain.",
+      "acceptanceCriteria": [
+        "SnesCore uses Snes9xWasmCore by default",
+        "Fallback to LibRetroCore works",
+        "Fallback to MockSnesCore works",
+        "isInMockMode() updated",
+        "getCoreInfo() updated",
+        "Tests pass"
+      ]
+    },
+    {
+      "id": "SNES-016",
+      "sprint": 4,
+      "title": "Add Feature Flags",
+      "labels": ["enhancement", "snes9x", "core", "sprint-4", "implementation"],
+      "timeEstimate": "2h",
+      "prerequisites": ["SNES-015"],
+      "objective": "Add feature flags to control which core implementation is used.",
+      "acceptanceCriteria": [
+        "VITE_USE_SNES9X_WASM flag added",
+        "Flag controls core selection",
+        "Documented in README",
+        "Tests pass"
+      ]
+    },
+    {
+      "id": "SNES-017",
+      "sprint": 4,
+      "title": "Integration Testing",
+      "labels": ["enhancement", "snes9x", "core", "sprint-4", "testing"],
+      "timeEstimate": "8h",
+      "prerequisites": ["SNES-015"],
+      "objective": "Create integration tests for end-to-end emulation scenarios.",
+      "acceptanceCriteria": [
+        "Load ROM → Run 60 frames test",
+        "Save/load state round-trip test",
+        "Input → Frame → Response test",
+        "Component integration tests",
+        "All integration tests pass"
+      ]
+    },
+    {
+      "id": "SNES-018",
+      "sprint": 4,
+      "title": "Update EmulatorScreen UI",
+      "labels": ["enhancement", "snes9x", "core", "sprint-4", "implementation"],
+      "timeEstimate": "4h",
+      "prerequisites": ["SNES-015"],
+      "objective": "Update EmulatorScreen component to show core info and status.",
+      "acceptanceCriteria": [
+        "Core name displayed",
+        "Loading state shown",
+        "Error handling improved",
+        "UI responsive",
+        "Tests pass"
+      ]
+    },
+    {
+      "id": "SNES-019",
+      "sprint": 5,
+      "title": "Achieve 100% Test Coverage",
+      "labels": ["enhancement", "snes9x", "core", "sprint-5", "testing"],
+      "timeEstimate": "12h",
+      "prerequisites": ["SNES-014"],
+      "objective": "Write comprehensive tests to achieve 100% coverage (131 tests).",
+      "acceptanceCriteria": [
+        "Statement coverage: 100%",
+        "Branch coverage: 100%",
+        "Function coverage: 100%",
+        "Line coverage: 100%",
+        "All 131 tests passing"
+      ]
+    },
+    {
+      "id": "SNES-020",
+      "sprint": 5,
+      "title": "Performance Optimization",
+      "labels": ["enhancement", "snes9x", "core", "sprint-5", "implementation"],
+      "timeEstimate": "8h",
+      "prerequisites": ["SNES-017"],
+      "objective": "Profile and optimize performance to meet targets.",
+      "acceptanceCriteria": [
+        "Frame time ≤16.67ms (60 FPS)",
+        "Memory usage <50MB",
+        "No memory leaks over 10 minutes",
+        "Benchmarks documented"
+      ]
+    },
+    {
+      "id": "SNES-021",
+      "sprint": 5,
+      "title": "Bug Fixes from Testing",
+      "labels": ["enhancement", "snes9x", "core", "sprint-5", "testing"],
+      "timeEstimate": "Variable",
+      "prerequisites": ["SNES-019"],
+      "objective": "Fix all bugs discovered during testing phase.",
+      "acceptanceCriteria": [
+        "All critical bugs fixed",
+        "All tests passing",
+        "No regressions"
+      ]
+    },
+    {
+      "id": "SNES-022",
+      "sprint": 5,
+      "title": "Documentation Updates",
+      "labels": ["enhancement", "snes9x", "core", "sprint-5", "documentation"],
+      "timeEstimate": "6h",
+      "prerequisites": ["SNES-014"],
+      "objective": "Update all documentation to reflect new implementation.",
+      "acceptanceCriteria": [
+        "README.md updated",
+        "EMULATOR_INTEGRATION.md updated",
+        "SNES9XWASM_API.md created",
+        "BUILD_GUIDE.md created",
+        "All JSDoc complete",
+        "Architecture diagrams updated"
+      ]
+    },
+    {
+      "id": "SNES-023",
+      "sprint": 6,
+      "title": "Production Build Testing",
+      "labels": ["enhancement", "snes9x", "core", "sprint-6", "testing"],
+      "timeEstimate": "4h",
+      "prerequisites": ["SNES-001 through SNES-022"],
+      "objective": "Test production builds thoroughly.",
+      "acceptanceCriteria": [
+        "Production build succeeds",
+        "Bundle size reasonable",
+        "No console errors",
+        "Performance meets targets"
+      ]
+    },
+    {
+      "id": "SNES-024",
+      "sprint": 6,
+      "title": "Browser Compatibility Testing",
+      "labels": ["enhancement", "snes9x", "core", "sprint-6", "testing"],
+      "timeEstimate": "6h",
+      "prerequisites": ["SNES-023"],
+      "objective": "Test on all target browsers.",
+      "acceptanceCriteria": [
+        "Chrome desktop works",
+        "Firefox desktop works",
+        "Safari desktop works",
+        "Edge desktop works",
+        "Chrome mobile works",
+        "Safari mobile works"
+      ]
+    },
+    {
+      "id": "SNES-025",
+      "sprint": 6,
+      "title": "Performance Benchmarking",
+      "labels": ["enhancement", "snes9x", "core", "sprint-6", "testing"],
+      "timeEstimate": "4h",
+      "prerequisites": ["SNES-023"],
+      "objective": "Run comprehensive performance benchmarks and document results.",
+      "acceptanceCriteria": [
+        "FPS benchmarks documented",
+        "Memory usage profiled",
+        "Frame timing measured",
+        "Comparison with LibRetro baseline"
+      ]
+    },
+    {
+      "id": "SNES-026",
+      "sprint": 6,
+      "title": "Final Code Review",
+      "labels": ["enhancement", "snes9x", "core", "sprint-6"],
+      "timeEstimate": "4h",
+      "prerequisites": ["SNES-001 through SNES-025"],
+      "objective": "Conduct final comprehensive code review.",
+      "acceptanceCriteria": [
+        "All code reviewed",
+        "No critical issues",
+        "Style consistent",
+        "Documentation complete"
+      ]
+    },
+    {
+      "id": "SNES-027",
+      "sprint": 6,
+      "title": "Release Preparation",
+      "labels": ["enhancement", "snes9x", "core", "sprint-6"],
+      "timeEstimate": "2h",
+      "prerequisites": ["SNES-026"],
+      "objective": "Prepare for release and merge to main.",
+      "acceptanceCriteria": [
+        "Changelog updated",
+        "Release notes written",
+        "Version bumped",
+        "Ready to merge"
+      ]
+    }
+  ]
+}
