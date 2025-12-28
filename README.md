@@ -2,9 +2,16 @@
 
 A browser-based SNES emulator built with React, TypeScript, and Vite, powered by LibRetro cores.
 
+## Issues
+
+- Libretro Implementation Failed, have packaged the snes9x wasm package in `src/assets/snes/core/snes9x2005-wasm-master/`
+  - Side Note: Included 4 .smc Roms in `src/assets/snes/test_roms/`
+
 ## Features
 
-- 🎮 **LibRetro Core Integration**: Full SNES emulation using libretro API
+- ~~🎮 **LibRetro Core Integration**: Full SNES emulation using libretro API~~
+- Need to replace LibRetro integration with `src/assets/snes/core/snes9x2005-wasm-master/`
+- Included 4 .smc Roms in `src/assets/snes/test_roms/`
 - 🖼️ **Canvas Rendering**: 60 FPS hardware-accelerated rendering with requestAnimationFrame
 - ⌨️ **Input Support**: Keyboard and Gamepad API with full SNES controller mapping
 - 🔊 **Low-Latency Audio**: WebAudio API with AudioWorklet processor
