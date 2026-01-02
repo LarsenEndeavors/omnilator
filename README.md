@@ -11,8 +11,10 @@ A browser-based multiplayer emulator platform enabling users to play classic SNE
 - **[Task Breakdown](docs/TASK_BREAKDOWN.md)** - Detailed task-by-task implementation guide
 
 **Technical Documentation**:
+- [Emscripten Setup Guide](docs/EMSCRIPTEN_SETUP.md) - ⚠️ **START HERE** for WebAssembly development
 - [Emulator Integration Guide](docs/EMULATOR_INTEGRATION.md)
 - [LibRetro Implementation Details](docs/LIBRETRO_IMPLEMENTATION.md)
+- [Snes9x WASM Implementation Plan](docs/SNES9XWASM_IMPLEMENTATION_PLAN.md)
 
 ## 🎯 Current Status
 
@@ -51,11 +53,45 @@ See the [Project Roadmap](docs/PROJECT_ROADMAP.md) for the complete development 
 
 ## Quick Start
 
+### Prerequisites
+
+For building WebAssembly modules, you'll need:
+- **Node.js** 20.x or later
+- **Emscripten SDK** 3.1.51 (for building WASM cores)
+
+See **[Emscripten Setup Guide](docs/EMSCRIPTEN_SETUP.md)** for detailed installation instructions.
+
 ### Installation
 
 ```bash
 npm install
 ```
+
+### Emscripten Setup (Required for Building WASM Cores)
+
+**Quick Setup:**
+
+```bash
+# Clone Emscripten SDK
+git clone https://github.com/emscripten-core/emsdk.git
+cd emsdk
+
+# Install and activate version 3.1.51
+./emsdk install 3.1.51
+./emsdk activate 3.1.51
+source ./emsdk_env.sh
+
+# Verify installation
+emcc --version  # Should show 3.1.51
+```
+
+**Verify your setup:**
+
+```bash
+./scripts/verify-emscripten.sh
+```
+
+For detailed instructions, troubleshooting, and alternative installation methods, see the complete **[Emscripten Setup Guide](docs/EMSCRIPTEN_SETUP.md)**.
 
 ### Running in Demo Mode
 
