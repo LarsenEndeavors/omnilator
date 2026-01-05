@@ -11,7 +11,8 @@
       "headers": {
         "CONTEXT7_API_KEY": "ctx7sk-74afdffb-ffb1-4a75-bc62-cf4c43271ba4"
       },
-      "tools": ["*"]
+      "tools": ["*"],
+      "_comment": "API key provided in project requirements for testing purposes"
     },
     "sequential-thinking": {
       "type": "stdio",

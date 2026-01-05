@@ -3,6 +3,9 @@
  * Type: HTTP
  * URL: https://mcp.context7.com/mcp
  * Requires: API Key authentication
+ * 
+ * Note: API key is provided in project requirements for testing purposes.
+ * In production, use environment variables.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -14,6 +17,7 @@ const config: MCPServerConfig = {
   type: 'http',
   url: 'https://mcp.context7.com/mcp',
   headers: {
+    // API key provided in project requirements for testing
     'CONTEXT7_API_KEY': 'ctx7sk-74afdffb-ffb1-4a75-bc62-cf4c43271ba4',
   },
   tools: ['*'],
