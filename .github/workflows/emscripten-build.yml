@@ -66,6 +66,10 @@ jobs:
       - name: Run tests
         run: npm test -- --run
         
+      - name: Run MCP server tests
+        run: npm test -- src/test/mcp --run
+        continue-on-error: true  # MCP tests may fail if external servers are unavailable
+        
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
