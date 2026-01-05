@@ -29,3 +29,4 @@ coverage
 
 # Emscripten SDK (downloaded locally, not committed)
 emsdk/
+emsdk-cache/
