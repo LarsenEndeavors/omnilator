@@ -16,6 +16,9 @@ dist-ssr
 coverage
 *.lcov
 
+# Emscripten SDK cache
+emsdk-cache/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
