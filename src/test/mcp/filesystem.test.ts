@@ -50,8 +50,8 @@ describe('filesystem MCP Server', () => {
       if (existsSync(TEST_DIR)) {
         rmSync(TEST_DIR, { recursive: true, force: true });
       }
-    } catch (error) {
-      console.warn('Failed to clean up test directory:', error);
+    } catch {
+      // Ignore cleanup errors
     }
   }, 10000);
 
@@ -236,7 +236,7 @@ describe('filesystem MCP Server', () => {
           });
           
           console.log('Warning: Server allowed access outside allowed directory');
-        } catch (error) {
+        } catch {
           // Expected to fail
           console.log('✓ Server properly restricts filesystem access');
         }

@@ -57,7 +57,7 @@ describe('MCP Servers Integration', () => {
     });
     
     // All servers should have valid configuration
-    Object.entries(results).forEach(([_serverName, errors]) => {
+    Object.values(results).forEach((errors) => {
       expect(errors).toEqual([]);
     });
     
@@ -95,7 +95,7 @@ describe('MCP Servers Integration', () => {
   });
 
   it('should have correct tool configurations', () => {
-    Object.entries(config.mcpServers).forEach(([_serverName, serverConfig]) => {
+    Object.values(config.mcpServers).forEach((serverConfig) => {
       expect(serverConfig.tools).toBeDefined();
       expect(Array.isArray(serverConfig.tools)).toBe(true);
       expect(serverConfig.tools).toContain('*');
@@ -176,10 +176,10 @@ describe('MCP Servers Integration', () => {
   });
 
   it('should have proper stdio server package references', () => {
-    const stdioServers = Object.entries(config.mcpServers)
-      .filter(([_, cfg]) => cfg.type === 'stdio');
+    const stdioServers = Object.values(config.mcpServers)
+      .filter((cfg) => cfg.type === 'stdio');
     
-    stdioServers.forEach(([_serverName, serverConfig]) => {
+    stdioServers.forEach((serverConfig) => {
       expect(serverConfig.args).toBeDefined();
       expect(serverConfig.args!.length).toBeGreaterThan(0);
       

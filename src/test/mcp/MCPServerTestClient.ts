@@ -52,17 +52,15 @@ export class MCPServerTestClient {
           stdio: ['pipe', 'pipe', 'pipe'],
         });
 
-        let initTimeout: NodeJS.Timeout;
         let initialized = false;
 
         // Set up error handler
-        this.process.on('error', (error) => {
-          clearTimeout(initTimeout);
+        this.process.on('error', (err) => {
           if (!initialized) {
-            reject(new Error(`Failed to start process: ${error.message}`));
+            reject(new Error(`Failed to start process: ${err.message}`));
           }
         });
-
+        
         // Set up output handler for JSON-RPC responses
         let buffer = '';
         this.process.stdout?.on('data', (data) => {
@@ -77,21 +75,21 @@ export class MCPServerTestClient {
               try {
                 const response: JSONRPCResponse = JSON.parse(line);
                 this.handleResponse(response);
-              } catch (error) {
+              } catch {
                 // Ignore non-JSON output (e.g., debug logs)
-                console.log('Non-JSON output:', line);
+                // console.log('Non-JSON output:', line);
               }
             }
           }
         });
 
         // Collect stderr for debugging
-        this.process.stderr?.on('data', (data) => {
-          console.error('Server stderr:', data.toString());
+        this.process.stderr?.on('data', () => {
+          // Ignore stderr output during normal operation
         });
 
         // Wait a short time for the process to start
-        initTimeout = setTimeout(() => {
+        setTimeout(() => {
           if (this.process && !this.process.killed) {
             initialized = true;
             resolve();
