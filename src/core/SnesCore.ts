@@ -1,33 +1,33 @@
 import type { IEmulatorCore } from './IEmulatorCore';
-import { LibRetroCore } from './LibRetroCore';
+import { Snes9xWasmCore } from './Snes9xWasmCore';
 import { MockSnesCore } from './MockSnesCore';
 
 /**
- * SNES emulator core implementation using LibRetro
+ * SNES emulator core implementation using SNES9x WASM
  * 
- * This class provides a SNES-specific wrapper around LibRetroCore, making it easy to
- * instantiate a SNES emulator without knowing the details of LibRetro.
+ * This class provides a SNES-specific wrapper around Snes9xWasmCore, making it easy to
+ * instantiate a SNES emulator using the SNES9x WebAssembly module.
  * 
- * The LibRetro architecture allows for loose coupling between the emulator frontend
- * (this application) and the emulator core (snes9x, bsnes, etc.). This means:
+ * The SNES9x WASM architecture provides direct integration with the snes9x2005
+ * emulator core compiled to WebAssembly. This means:
  * 
- * - Easy to swap between different SNES cores
- * - Core updates don't require code changes
- * - Can support multiple systems by using different cores
+ * - High performance SNES emulation
+ * - Accurate cycle-level emulation
+ * - Native SNES9x features and compatibility
  * 
  * Implementation Strategy:
  * 
- * This class delegates all work to LibRetroCore, which handles the low-level
+ * This class delegates all work to Snes9xWasmCore, which handles the low-level
  * details of:
  * - WASM module loading and initialization
  * - Memory management between JS and WASM
- * - Pixel format conversion (RGB565/XRGB8888 → RGBA)
+ * - Pixel format conversion (RGB565 → RGBA)
  * - Audio sample format conversion (int16 → float32)
- * - LibRetro callback implementation
+ * - SNES9x callback implementation
  * 
  * Fallback Mode:
  * 
- * If the LibRetro core fails to load (network issues, missing files), the class
+ * If the SNES9x WASM core fails to load (network issues, missing files), the class
  * automatically falls back to MockSnesCore which provides a demo mode showing
  * that the emulator infrastructure is working without requiring external dependencies.
  * 
@@ -46,32 +46,28 @@ import { MockSnesCore } from './MockSnesCore';
  * }, 1000/60);
  * ```
  * 
- * Core Selection:
+ * Core Source:
  * 
- * By default, this uses the locally built 'snes9x_2005' core from `/cores/snes9x_2005.js`.
- * The core is compiled from source during the build process using Emscripten.
+ * By default, this uses the SNES9x-2005 WASM core from:
+ * `https://kazuki-4ys.github.io/web_apps/snes9x-2005-wasm/snes9x_2005.js`
+ * 
  * You can customize the core by passing a different URL to the constructor:
  * 
  * ```typescript
- * // Use default locally built core
+ * // Use default external SNES9x WASM core
  * const core = new SnesCore();
  * 
  * // Use a custom core location
  * const core = new SnesCore('snes9x_2005', '/custom/path/snes9x_2005.js');
  * ```
  * 
- * Available SNES Cores:
- * - snes9x_2005: Built from source, fast and accurate, recommended
- * - Other cores can be downloaded from https://buildbot.libretro.com/stable/latest/emscripten/
+ * **SNES9x WASM Module:**
  * 
- * **Build Process:**
- * 
- * The SNES core is automatically built during CI using Emscripten from the source
- * files in `public/snes/core/snes9x2005-wasm-master/`. The build produces:
+ * The SNES9x WASM module is loaded from an external CDN. The module consists of:
  * - `snes9x_2005.js` - JavaScript glue code
  * - `snes9x_2005.wasm` - WebAssembly binary
  * 
- * These files are copied to `public/cores/` for easy access.
+ * These files are maintained by the SNES9x WASM project.
  */
 export class SnesCore implements IEmulatorCore {
   private core: IEmulatorCore;
@@ -80,13 +76,13 @@ export class SnesCore implements IEmulatorCore {
   /**
    * Create a new SNES emulator core
    * 
-   * @param coreName - Name of the LibRetro core to use (default: 'snes9x_2005')
-   * @param coreUrl - Optional custom URL for the core. If not provided, uses locally built core.
+   * @param coreName - Name of the SNES9x core to use (default: 'snes9x_2005')
+   * @param coreUrl - Optional custom URL for the core. If not provided, uses external SNES9x WASM core.
    *                  Will fall back to mock mode if loading fails.
    * 
    * @example
    * ```typescript
-   * // Use default locally built snes9x core
+   * // Use default external SNES9x WASM core
    * const core = new SnesCore();
    * 
    * // Use custom core URL
@@ -97,34 +93,33 @@ export class SnesCore implements IEmulatorCore {
     coreName: string = 'snes9x_2005',
     coreUrl?: string
   ) {
-    // Use local core by default
-    this.core = new LibRetroCore(
+    // Use external SNES9x WASM core by default
+    this.core = new Snes9xWasmCore(
       coreName,
-      coreUrl || '/cores/snes9x_2005.js'
+      coreUrl || 'https://kazuki-4ys.github.io/web_apps/snes9x-2005-wasm/snes9x_2005.js'
     );
   }
 
   /**
    * Initialize the emulator core
    * 
-   * This attempts to load the LibRetro WASM module and set up all callbacks.
-   * If the LibRetro core fails to load (network issues, CORS, missing files),
+   * This attempts to load the SNES9x WASM module and set up all callbacks.
+   * If the SNES9x WASM core fails to load (network issues, CORS, missing files),
    * it automatically falls back to MockSnesCore which provides a demo mode.
    * 
    * Must be called before any other operations.
    */
   async initialize(): Promise<void> {
-    // Check if we're using LibRetroCore
-    const isLibRetro = this.core instanceof LibRetroCore;
+    // Check if we're using Snes9xWasmCore
+    const isSnes9xWasm = this.core instanceof Snes9xWasmCore;
     
-    if (isLibRetro) {
+    if (isSnes9xWasm) {
       try {
         await this.core.initialize();
-        console.log('LibRetro core initialized successfully');
+        console.log('SNES9x WASM core initialized successfully');
       } catch (error) {
-        console.warn('Failed to initialize LibRetro core, falling back to mock mode:', error);
-        console.warn('Make sure the SNES core is built and available at /cores/snes9x_2005.js');
-        console.warn('Run "npm run build" or use the build-wasm.sh script to compile the core');
+        console.warn('Failed to initialize SNES9x WASM core, falling back to mock mode:', error);
+        console.warn('Make sure the SNES9x WASM module is accessible');
         
         // Fall back to mock mode
         this.core = new MockSnesCore();
@@ -140,7 +135,7 @@ export class SnesCore implements IEmulatorCore {
   /**
    * Check if the core is using mock mode
    * 
-   * @returns true if using MockSnesCore (demo mode), false if using LibRetroCore
+   * @returns true if using MockSnesCore (demo mode), false if using Snes9xWasmCore
    */
   isInMockMode(): boolean {
     return this.isUsingMock;
@@ -344,7 +339,7 @@ export class SnesCore implements IEmulatorCore {
    */
   getCoreInfo(): { name: string; version: string } {
     if ('getCoreInfo' in this.core) {
-      return (this.core as LibRetroCore).getCoreInfo();
+      return (this.core as Snes9xWasmCore).getCoreInfo();
     }
     return { name: 'Mock', version: 'demo' };
   }

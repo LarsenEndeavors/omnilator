@@ -1,8 +1,8 @@
 import type { IEmulatorCore } from './IEmulatorCore';
 
 /**
- * LibRetro API environment commands
- * These constants match the libretro.h API specification
+ * Snes9xWasm API environment commands
+ * These constants match the snes9x.h API specification
  */
 const RetroEnvironment = {
   SET_ROTATION: 1,
@@ -44,7 +44,7 @@ const RetroEnvironment = {
 } as const;
 
 /**
- * LibRetro pixel formats
+ * Snes9xWasm pixel formats
  */
 const RetroPixelFormat = {
   RGB1555: 0, // 0RGB1555, native endian. 0 bit must be set to 0.
@@ -53,7 +53,7 @@ const RetroPixelFormat = {
 } as const;
 
 /**
- * LibRetro device types
+ * Snes9xWasm device types
  */
 const RetroDeviceType = {
   NONE: 0,
@@ -113,12 +113,12 @@ interface EmscriptenModule {
 }
 
 /**
- * LibRetro core implementation for SNES emulation
+ * Snes9xWasm core implementation for SNES emulation
  * 
- * This class implements the IEmulatorCore interface by wrapping a libretro-compatible
- * SNES core (such as snes9x_libretro or bsnes_libretro) compiled to WebAssembly.
+ * This class implements the IEmulatorCore interface by wrapping a snes9x-compatible
+ * SNES core (such as snes9x_snes9x or bsnes_snes9x) compiled to WebAssembly.
  * 
- * LibRetro provides a standardized API that makes it easy to swap between different
+ * Snes9xWasm provides a standardized API that makes it easy to swap between different
  * emulator cores while maintaining the same interface. This implementation handles:
  * 
  * - WASM module loading and initialization
@@ -130,7 +130,7 @@ interface EmscriptenModule {
  * 
  * Architecture:
  * 
- * The libretro API uses a callback-based design where the core calls back into
+ * The snes9x API uses a callback-based design where the core calls back into
  * the frontend (this class) for video/audio/input. The flow is:
  * 
  * 1. Frontend calls retro_run() to execute one frame
@@ -142,14 +142,14 @@ interface EmscriptenModule {
  * 
  * @example
  * ```typescript
- * const core = new LibRetroCore('snes9x');
+ * const core = new Snes9xWasmCore('snes9x');
  * await core.loadROM(romData);
  * await core.runFrame(); // Execute one frame
  * const frame = core.getBuffer(); // Get video output
  * const audio = core.getAudioSamples(); // Get audio output
  * ```
  */
-export class LibRetroCore implements IEmulatorCore {
+export class Snes9xWasmCore implements IEmulatorCore {
   // WASM module and memory
   private module: EmscriptenModule | null = null;
   private memory: ArrayBuffer | null = null;
@@ -182,16 +182,16 @@ export class LibRetroCore implements IEmulatorCore {
   private systemAvInfo: RetroSystemAvInfo | null = null;
 
   /**
-   * Create a new LibRetro core instance
+   * Create a new Snes9xWasm core instance
    * @param coreName - Name of the core to load (e.g., 'snes9x', 'bsnes')
    * @param coreUrl - Optional custom URL for the core WASM file
    */
   constructor(coreName: string = 'snes9x', coreUrl?: string) {
     this.coreName = coreName;
     
-    // Default to buildbot URL if not provided
+    // Default to external SNES9x WASM URL if not provided
     // For production, these cores should be hosted locally in the public/ directory
-    this.coreUrl = coreUrl || `https://buildbot.libretro.com/stable/latest/emscripten/${coreName}_libretro.js`;
+    this.coreUrl = coreUrl || `https://kazuki-4ys.github.io/web_apps/snes9x-2005-wasm/snes9x_2005.js`;
     
     // Initialize buffers with default SNES resolution
     this.videoBuffer = new Uint8Array(this.width * this.height * 4); // RGBA
@@ -199,9 +199,9 @@ export class LibRetroCore implements IEmulatorCore {
   }
 
   /**
-   * Initialize the LibRetro core
+   * Initialize the Snes9xWasm core
    * 
-   * This loads the WASM module and sets up all the libretro callbacks.
+   * This loads the WASM module and sets up all the snes9x callbacks.
    * The initialization process:
    * 
    * 1. Load the core's JavaScript wrapper and WASM module
@@ -220,7 +220,7 @@ export class LibRetroCore implements IEmulatorCore {
     }
 
     try {
-      // Load the LibRetro core WASM module
+      // Load the Snes9xWasm core WASM module
       // The buildbot cores come with an Emscripten-generated JS loader
       const Module = await this.loadWasmModule();
       this.module = Module;
@@ -228,7 +228,7 @@ export class LibRetroCore implements IEmulatorCore {
       // Get the WASM memory buffer
       this.memory = Module.HEAP8.buffer;
       
-      // Set up libretro environment callback
+      // Set up snes9x environment callback
       // This is called by the core to query capabilities and configuration
       Module._retro_set_environment(
         Module.addFunction(this.environmentCallback.bind(this), 'iii')
@@ -266,10 +266,10 @@ export class LibRetroCore implements IEmulatorCore {
       Module._retro_init();
       
       this.isInitialized = true;
-      console.log(`LibRetro core '${this.coreName}' initialized successfully`);
+      console.log(`Snes9xWasm core '${this.coreName}' initialized successfully`);
     } catch (error) {
-      console.error('Failed to initialize LibRetro core:', error);
-      throw new Error(`Failed to initialize LibRetro core: ${error}`);
+      console.error('Failed to initialize Snes9xWasm core:', error);
+      throw new Error(`Failed to initialize Snes9xWasm core: ${error}`);
     }
   }
 
@@ -499,7 +499,7 @@ export class LibRetroCore implements IEmulatorCore {
   /**
    * Copy frame data from WASM memory and convert pixel format
    * 
-   * Handles conversion from various libretro pixel formats to RGBA8888:
+   * Handles conversion from various snes9x pixel formats to RGBA8888:
    * - RGB565: 16-bit, 5-6-5 bits per channel
    * - RGB1555: 16-bit, 5-5-5 bits per channel, 1 unused bit
    * - XRGB8888: 32-bit, 8-8-8 bits per channel, 8 unused bits
@@ -956,7 +956,7 @@ export class LibRetroCore implements IEmulatorCore {
     }
     this.module = null;
     this.memory = null;
-    console.log('LibRetro core cleaned up');
+    console.log('Snes9xWasm core cleaned up');
   }
 
   /**
