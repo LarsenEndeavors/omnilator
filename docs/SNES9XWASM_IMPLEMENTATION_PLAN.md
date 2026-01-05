@@ -516,9 +516,9 @@ Each task includes:
 ### 8.2 Complete Task List (27 Tasks)
 
 **Sprint 1: Foundation (Week 1)**
-- SNES-001: Set Up Emscripten Build Environment (2h)
-- SNES-002: Build snes9x2005-wasm from Source (1h)
-- SNES-003: Create TypeScript Module Interface (3h)
+- ✅ SNES-001: Set Up Emscripten Build Environment (2h) - COMPLETE
+- ✅ SNES-002: Build snes9x2005-wasm from Source (1h) - COMPLETE
+- ✅ SNES-003: Create TypeScript Module Interface (3h) - COMPLETE
 - SNES-004: Create Mock WASM Module (4h)
 - SNES-005: Create Snes9xWasmCore Skeleton (2h)
 
