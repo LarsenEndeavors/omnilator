@@ -36,7 +36,7 @@ describe('context7 MCP Server', () => {
       console.warn('context7 server not available:', error);
       serverAvailable = false;
     }
-  }, 30000);
+  }, 60000); // Match hookTimeout from vitest config
 
   afterAll(async () => {
     if (client) {
