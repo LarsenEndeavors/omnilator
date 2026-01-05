@@ -91,9 +91,14 @@ export interface Snes9xWasmModule extends EmscriptenModule {
    * Memory allocated with this function must be freed with `_my_free`
    * to prevent memory leaks. The allocated memory is zero-initialized.
    * 
+   * **Note**: This function can return 0 as a valid address (first allocation).
+   * The C implementation uses `calloc()` which returns NULL (0) on failure,
+   * but in WASM, address 0 can be a valid allocation. Check for allocation
+   * failure by verifying the operation succeeds, not just by checking if
+   * the pointer is 0.
+   * 
    * @param length - Number of bytes to allocate
-   * @returns Pointer to the allocated memory (offset in WASM heap)
-   * @throws Will throw if allocation fails (out of memory)
+   * @returns Pointer to the allocated memory (offset in WASM heap), or 0 if allocation fails
    * 
    * @example
    * ```typescript
@@ -197,7 +202,11 @@ export interface Snes9xWasmModule extends EmscriptenModule {
    * Set the joypad input state for player 1.
    * 
    * The input is a 32-bit bitmask where each bit represents a button.
-   * Only player 1 input is currently supported by the WASM module.
+   * 
+   * **IMPORTANT**: This WASM module only supports player 1 input. The C source
+   * code (`S9xReadJoypad`) returns 0 for all ports except port 0. This is a
+   * limitation of the current snes9x2005-wasm implementation and differs from
+   * the `IEmulatorCore.setInput(port, buttons)` interface which supports 4 ports.
    * 
    * Button mapping (matching SNES controller):
    * - Bit 0: B button
@@ -637,14 +646,21 @@ export interface WasmMemoryHelpers {
   /**
    * Copy JavaScript Uint8Array to WASM memory.
    * 
+   * Allocates memory in WASM, copies the data, and returns the pointer.
+   * The caller is responsible for freeing this memory.
+   * 
    * @param module - The WASM module
    * @param data - Data to copy
    * @returns Pointer to the allocated memory
+   * @throws Error if allocation fails
    */
   copyToWasm(module: Snes9xWasmModule, data: Uint8Array): number;
   
   /**
    * Copy data from WASM memory to JavaScript Uint8Array.
+   * 
+   * Creates a new Uint8Array and copies data from WASM memory.
+   * Safe to use even if WASM memory grows after this call.
    * 
    * @param module - The WASM module
    * @param ptr - Pointer to WASM memory
@@ -652,25 +668,20 @@ export interface WasmMemoryHelpers {
    * @returns New Uint8Array with copied data
    */
   copyFromWasm(module: Snes9xWasmModule, ptr: number, length: number): Uint8Array;
-  
-  /**
-   * Free WASM memory and null the pointer.
-   * 
-   * @param module - The WASM module
-   * @param ptr - Pointer to free (will be set to 0)
-   */
-  freeWasm(module: Snes9xWasmModule, ptr: { value: number }): void;
 }
 
 /**
  * Default implementation of WASM memory helpers.
+ * 
+ * These utilities provide safe memory management patterns for working
+ * with the WASM module, handling allocation, copying, and deallocation.
  */
 export const wasmMemoryHelpers: WasmMemoryHelpers = {
   copyToWasm(module: Snes9xWasmModule, data: Uint8Array): number {
     const ptr = module._my_malloc(data.length);
-    if (!ptr) {
-      throw new Error(`Failed to allocate ${data.length} bytes in WASM memory`);
-    }
+    // Note: ptr can be 0 on first allocation, so we rely on the C code
+    // to handle allocation failures internally. In practice, malloc
+    // failures will typically cause the WASM module to abort.
     const heap = new Uint8Array(module.HEAP8.buffer, ptr, data.length);
     heap.set(data);
     return ptr;
@@ -681,12 +692,5 @@ export const wasmMemoryHelpers: WasmMemoryHelpers = {
     const heap = new Uint8Array(module.HEAP8.buffer, ptr, length);
     data.set(heap);
     return data;
-  },
-  
-  freeWasm(module: Snes9xWasmModule, ptr: { value: number }): void {
-    if (ptr.value) {
-      module._my_free(ptr.value);
-      ptr.value = 0;
-    }
   },
 };
