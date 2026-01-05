@@ -48,27 +48,30 @@ import { MockSnesCore } from './MockSnesCore';
  * 
  * Core Selection:
  * 
- * By default, this uses the 'snes9x' core from the LibRetro buildbot.
- * You can customize the core by passing a different name or URL to the constructor:
+ * By default, this uses the locally built 'snes9x_2005' core from `/cores/snes9x_2005.js`.
+ * The core is compiled from source during the build process using Emscripten.
+ * You can customize the core by passing a different URL to the constructor:
  * 
  * ```typescript
- * // Use bsnes core instead
- * const core = new SnesCore('bsnes');
+ * // Use default locally built core
+ * const core = new SnesCore();
  * 
- * // Use a locally hosted core (recommended for production)
- * const core = new SnesCore('snes9x', '/cores/snes9x_libretro.js');
+ * // Use a custom core location
+ * const core = new SnesCore('snes9x_2005', '/custom/path/snes9x_2005.js');
  * ```
  * 
  * Available SNES Cores:
- * - snes9x: Fast, accurate, recommended for most games
- * - bsnes: Maximum accuracy, higher CPU requirements
- * - mednafen_snes: Good balance of speed and accuracy
+ * - snes9x_2005: Built from source, fast and accurate, recommended
+ * - Other cores can be downloaded from https://buildbot.libretro.com/stable/latest/emscripten/
  * 
- * **Important for Production:**
+ * **Build Process:**
  * 
- * Download cores from https://buildbot.libretro.com/stable/latest/emscripten/
- * and host them in your public/ directory. The default buildbot URL may not be
- * accessible in all environments (CORS, network restrictions, etc.).
+ * The SNES core is automatically built during CI using Emscripten from the source
+ * files in `public/snes/core/snes9x2005-wasm-master/`. The build produces:
+ * - `snes9x_2005.js` - JavaScript glue code
+ * - `snes9x_2005.wasm` - WebAssembly binary
+ * 
+ * These files are copied to `public/cores/` for easy access.
  */
 export class SnesCore implements IEmulatorCore {
   private core: IEmulatorCore;
@@ -77,27 +80,28 @@ export class SnesCore implements IEmulatorCore {
   /**
    * Create a new SNES emulator core
    * 
-   * @param coreName - Name of the LibRetro core to use (default: 'snes9x')
-   * @param coreUrl - Optional custom URL for the core. If not provided, attempts to load from LibRetro buildbot.
+   * @param coreName - Name of the LibRetro core to use (default: 'snes9x_2005')
+   * @param coreUrl - Optional custom URL for the core. If not provided, uses locally built core.
    *                  Will fall back to mock mode if loading fails.
    * 
    * @example
    * ```typescript
-   * // Use default snes9x core (will fall back to mock if unavailable)
+   * // Use default locally built snes9x core
    * const core = new SnesCore();
    * 
-   * // Use bsnes core for maximum accuracy
-   * const core = new SnesCore('bsnes');
-   * 
-   * // Use locally hosted core (recommended for production)
-   * const core = new SnesCore('snes9x', '/cores/snes9x_libretro.js');
+   * // Use custom core URL
+   * const core = new SnesCore('snes9x_2005', '/custom/path/snes9x_2005.js');
    * ```
    */
   constructor(
-    coreName: string = 'snes9x',
+    coreName: string = 'snes9x_2005',
     coreUrl?: string
   ) {
-    this.core = new LibRetroCore(coreName, coreUrl);
+    // Use local core by default
+    this.core = new LibRetroCore(
+      coreName,
+      coreUrl || '/cores/snes9x_2005.js'
+    );
   }
 
   /**
@@ -119,8 +123,8 @@ export class SnesCore implements IEmulatorCore {
         console.log('LibRetro core initialized successfully');
       } catch (error) {
         console.warn('Failed to initialize LibRetro core, falling back to mock mode:', error);
-        console.warn('To use real emulation, download a core from https://buildbot.libretro.com/stable/latest/emscripten/');
-        console.warn('and host it locally, then use: new SnesCore("snes9x", "/cores/snes9x_libretro.js")');
+        console.warn('Make sure the SNES core is built and available at /cores/snes9x_2005.js');
+        console.warn('Run "npm run build" or use the build-wasm.sh script to compile the core');
         
         // Fall back to mock mode
         this.core = new MockSnesCore();

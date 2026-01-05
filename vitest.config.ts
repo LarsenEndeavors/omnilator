@@ -8,6 +8,13 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
     testTimeout: 10000, // 10 seconds per test
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/emsdk/**',
+      '**/emsdk-cache/**',
+      '**/.{git,cache,output,temp}/**',
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
