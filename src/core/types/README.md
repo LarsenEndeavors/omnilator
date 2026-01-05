@@ -66,9 +66,9 @@ const videoBuffer = new Uint8Array(
 // 5. Get audio
 const audioPtr = module._getSoundBuffer();
 const audioSamples = new Float32Array(
-  module.HEAP8.buffer,
+  module.HEAPF32.buffer,
   audioPtr,
-  4096 // 2048 stereo frames
+  4096 // 2048 stereo frames = 4096 float32 values
 );
 ```
 
