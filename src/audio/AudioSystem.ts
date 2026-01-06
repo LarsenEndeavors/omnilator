@@ -62,7 +62,7 @@ export class AudioSystem {
   private initializeFallback(): void {
     if (!this.audioContext) return;
 
-    const bufferSize = 2048;
+    const bufferSize = 4096; // Match the WASM buffer size
     const processor = this.audioContext.createScriptProcessor(bufferSize, 0, 2);
 
     processor.onaudioprocess = (event) => {
@@ -72,6 +72,7 @@ export class AudioSystem {
       const outputR = event.outputBuffer.getChannelData(1);
       const samples = this.core.getAudioSamples();
 
+      // De-interleave stereo samples
       for (let i = 0; i < bufferSize; i++) {
         outputL[i] = samples[i * 2] || 0;
         outputR[i] = samples[i * 2 + 1] || 0;

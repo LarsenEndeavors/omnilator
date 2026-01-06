@@ -137,9 +137,14 @@ export class Snes9xWasmCore implements IEmulatorCore {
       throw new Error('ROM not loaded');
     }
 
+    // Set input state before running the frame
     // Only player 1 input is supported by the current WASM build.
     this.module._setJoypadInput(this.inputStates[0]);
+    
+    // Run one frame of emulation
     this.module._mainLoop();
+    
+    // Capture video and audio immediately after emulation
     this.captureVideo();
     this.captureAudio();
   }
@@ -171,7 +176,8 @@ export class Snes9xWasmCore implements IEmulatorCore {
     this.inputStates[port] = buttons;
 
     // Current WASM core supports player 1 only; update immediately when available.
-    if (port === 0 && this.module) {
+    // Don't try to set input before ROM is loaded as it may cause issues
+    if (port === 0 && this.module && this.romLoaded) {
       this.module._setJoypadInput(buttons);
     }
   }

@@ -48,9 +48,9 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
 
   const { buttons, isGamepadConnected } = useInput({
     port: 0,
-    enabled: isInitialized,
+    enabled: isInitialized && loadedRomName !== null,
     onInputChange: (buttons) => {
-      if (isInitialized) {
+      if (isInitialized && loadedRomName !== null) {
         core.setInput(0, buttons);
       }
     },

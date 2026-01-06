@@ -26,8 +26,8 @@ class EmulatorAudioProcessor extends AudioWorkletProcessor {
     const outputL = output[0];
     const outputR = output[1];
 
-    // Request more samples if buffer is running low
-    if (this.sampleBuffer.length < output[0].length * 4) {
+    // Request more samples if buffer is running low (less than 2 frames worth)
+    if (this.sampleBuffer.length < 256) {
       this.port.postMessage({ type: 'request-samples' });
     }
 
