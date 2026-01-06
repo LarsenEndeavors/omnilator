@@ -40,7 +40,6 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
   const [saveStates, setSaveStates] = useState<Map<number, Uint8Array>>(new Map());
   const [loadedRomName, setLoadedRomName] = useState<string | null>(null);
   const [isLoadingRom, setIsLoadingRom] = useState(false);
-  const [isMockMode, setIsMockMode] = useState(false);
 
   const { canvasRef, isRunning, fps, toggle } = useEmulator({
     core,
@@ -63,7 +62,6 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
       try {
         await core.initialize();
         setIsInitialized(true);
-        setIsMockMode(core.isInMockMode());
         
         // Try to initialize audio system (non-blocking)
         try {
@@ -162,22 +160,6 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
       {error && (
         <div className="error-message">
           <strong>Error:</strong> {error}
-        </div>
-      )}
-
-      {isMockMode && (
-        <div className="demo-notice">
-          <strong>⚠️ Demo Mode:</strong> LibRetro core not loaded. Showing demo pattern with input indicators.
-          <br />
-          To use real emulation, download a core from{' '}
-          <a 
-            href="https://buildbot.libretro.com/stable/latest/emscripten/" 
-            target="_blank" 
-            rel="noopener noreferrer"
-          >
-            LibRetro buildbot
-          </a>
-          {' '}and host it locally.
         </div>
       )}
 

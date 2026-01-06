@@ -1,35 +1,29 @@
 import type { IEmulatorCore } from './IEmulatorCore';
 import { Snes9xWasmCore } from './Snes9xWasmCore';
-import { MockSnesCore } from './MockSnesCore';
+import type { Snes9xWasmModule } from './types/Snes9xWasmModule';
 
 /**
  * SNES emulator core implementation using SNES9x WASM
  * 
  * This class provides a SNES-specific wrapper around Snes9xWasmCore, making it easy to
- * instantiate a SNES emulator using the SNES9x WebAssembly module.
+ * instantiate a SNES emulator using the SNES9x WebAssembly module from Emulatrix.
  * 
- * The SNES9x WASM architecture provides direct integration with the snes9x2005
- * emulator core compiled to WebAssembly. This means:
- * 
+ * The SNES9x WASM core (snes9x_2005) provides:
  * - High performance SNES emulation
  * - Accurate cycle-level emulation
  * - Native SNES9x features and compatibility
+ * - Video output at 512x448 resolution (RGBA8888)
+ * - Audio output at 48kHz (stereo float32)
+ * - Save state support
  * 
- * Implementation Strategy:
+ * Implementation:
  * 
- * This class delegates all work to Snes9xWasmCore, which handles the low-level
- * details of:
- * - WASM module loading and initialization
- * - Memory management between JS and WASM
- * - Pixel format conversion (RGB565 → RGBA)
- * - Audio sample format conversion (int16 → float32)
- * - SNES9x callback implementation
- * 
- * Fallback Mode:
- * 
- * If the SNES9x WASM core fails to load (network issues, missing files), the class
- * automatically falls back to MockSnesCore which provides a demo mode showing
- * that the emulator infrastructure is working without requiring external dependencies.
+ * This class delegates all work to Snes9xWasmCore, which handles:
+ * - WASM module loading from /cores/snes9x_2005.js
+ * - Memory management between JavaScript and WASM
+ * - Video and audio buffer capture
+ * - Input handling for player 1
+ * - Save state serialization
  * 
  * Usage:
  * ```typescript
@@ -46,43 +40,28 @@ import { MockSnesCore } from './MockSnesCore';
  * }, 1000/60);
  * ```
  * 
- * Core Source:
+ * Core Files:
  * 
- * By default, this uses the SNES9x-2005 WASM core from:
- * `https://kazuki-4ys.github.io/web_apps/snes9x-2005-wasm/snes9x_2005.js`
- * 
- * You can customize the core by passing a different URL to the constructor:
- * 
- * ```typescript
- * // Use default external SNES9x WASM core
- * const core = new SnesCore();
- * 
- * // Use a custom core location
- * const core = new SnesCore('snes9x_2005', '/custom/path/snes9x_2005.js');
- * ```
- * 
- * **SNES9x WASM Module:**
- * 
- * The SNES9x WASM module is loaded from an external CDN. The module consists of:
- * - `snes9x_2005.js` - JavaScript glue code
+ * The SNES9x WASM module files are located in /public/cores/:
+ * - `snes9x_2005.js` - JavaScript glue code (Emscripten output)
  * - `snes9x_2005.wasm` - WebAssembly binary
  * 
- * These files are maintained by the SNES9x WASM project.
+ * These files are from the Emulatrix project and provide the actual
+ * SNES emulation functionality.
  */
 export class SnesCore implements IEmulatorCore {
-  private core: IEmulatorCore;
-  private isUsingMock = false;
+  private core: Snes9xWasmCore;
 
   /**
    * Create a new SNES emulator core
    * 
    * @param coreName - Name of the SNES9x core to use (default: 'snes9x_2005')
-   * @param coreUrl - Optional custom URL for the core. If not provided, uses external SNES9x WASM core.
-   *                  Will fall back to mock mode if loading fails.
+   * @param coreUrl - Optional custom URL for the core (default: '/cores/snes9x_2005.js')
+   * @param moduleLoader - Optional custom module loader for testing
    * 
    * @example
    * ```typescript
-   * // Use default external SNES9x WASM core
+   * // Use default local core
    * const core = new SnesCore();
    * 
    * // Use custom core URL
@@ -91,61 +70,31 @@ export class SnesCore implements IEmulatorCore {
    */
   constructor(
     coreName: string = 'snes9x_2005',
-    coreUrl?: string
+    coreUrl?: string,
+    moduleLoader?: () => Promise<Snes9xWasmModule>
   ) {
-    // Use external SNES9x WASM core by default
-    this.core = new Snes9xWasmCore(
-      coreName,
-      coreUrl || 'https://kazuki-4ys.github.io/web_apps/snes9x-2005-wasm/snes9x_2005.js'
-    );
+    // Use local SNES9x WASM core from /public/cores/
+    this.core = new Snes9xWasmCore(coreName, coreUrl, moduleLoader);
   }
 
   /**
    * Initialize the emulator core
    * 
-   * This attempts to load the SNES9x WASM module and set up all callbacks.
-   * If the SNES9x WASM core fails to load (network issues, CORS, missing files),
-   * it automatically falls back to MockSnesCore which provides a demo mode.
-   * 
+   * Loads the SNES9x WASM module and sets up the emulation environment.
    * Must be called before any other operations.
+   * 
+   * @throws Error if WASM module fails to load
    */
   async initialize(): Promise<void> {
-    // Check if we're using Snes9xWasmCore
-    const isSnes9xWasm = this.core instanceof Snes9xWasmCore;
-    
-    if (isSnes9xWasm) {
-      try {
-        await this.core.initialize();
-        console.log('SNES9x WASM core initialized successfully');
-      } catch (error) {
-        console.warn('Failed to initialize SNES9x WASM core, falling back to mock mode:', error);
-        console.warn('Make sure the SNES9x WASM module is accessible');
-        
-        // Fall back to mock mode
-        this.core = new MockSnesCore();
-        await this.core.initialize();
-        this.isUsingMock = true;
-      }
-    } else {
-      // Already using mock or other implementation
-      await this.core.initialize();
-    }
-  }
-
-  /**
-   * Check if the core is using mock mode
-   * 
-   * @returns true if using MockSnesCore (demo mode), false if using Snes9xWasmCore
-   */
-  isInMockMode(): boolean {
-    return this.isUsingMock;
+    await this.core.initialize();
+    console.log('SNES9x WASM core initialized successfully');
   }
 
   /**
    * Load a ROM file into the emulator
    * 
    * Supports .smc and .sfc ROM formats. The ROM data is copied into WASM memory
-   * and passed to the core's retro_load_game() function.
+   * and passed to the core's _startWithRom() function.
    * 
    * @param romData - The ROM file data as a Uint8Array
    * @throws Error if ROM fails to load (invalid format, unsupported mapper, etc.)
@@ -177,8 +126,7 @@ export class SnesCore implements IEmulatorCore {
    * Get the current video frame
    * 
    * Returns the most recently rendered frame as an ImageData object ready for
-   * drawing to a canvas. The resolution is typically 256x224 for NTSC games
-   * or 256x240 for some games that use overscan.
+   * drawing to a canvas. The resolution is 512x448 (maximum including overscan).
    * 
    * The pixel format is RGBA8888 (4 bytes per pixel, 8 bits per channel).
    * 
@@ -194,10 +142,8 @@ export class SnesCore implements IEmulatorCore {
    * Returns the audio samples generated during the last runFrame() call.
    * The samples are interleaved stereo float32 values in the range [-1, 1].
    * 
-   * For SNES, the sample rate is typically ~32040 Hz, so each frame generates
-   * approximately 534 samples (267 per channel).
-   * 
    * Format: [L0, R0, L1, R1, L2, R2, ...]
+   * Sample count: 4096 samples (2048 stereo frames)
    * 
    * @returns Float32Array containing interleaved stereo audio samples
    */
@@ -208,8 +154,8 @@ export class SnesCore implements IEmulatorCore {
   /**
    * Set controller input state
    * 
-   * Updates the button state for a specific controller port. The SNES supports
-   * up to 4 controllers (with a multitap accessory).
+   * Updates the button state for player 1 (port 0). The SNES9x WASM core
+   * currently only supports single-player input.
    * 
    * The button bitmask uses the SnesButton constants from IEmulatorCore:
    * - Bit 0: B button
@@ -225,7 +171,7 @@ export class SnesCore implements IEmulatorCore {
    * - Bit 10: L button
    * - Bit 11: R button
    * 
-   * @param port - Controller port (0-3)
+   * @param port - Controller port (0-3, but only 0 is supported)
    * @param buttons - Button state bitmask
    * @throws Error if port is invalid
    * 
@@ -233,13 +179,13 @@ export class SnesCore implements IEmulatorCore {
    * ```typescript
    * import { SnesButton } from './IEmulatorCore';
    * 
-   * // Press A and B buttons on port 1
+   * // Press A and B buttons
    * core.setInput(0, SnesButton.A | SnesButton.B);
    * 
-   * // Press START on port 2
-   * core.setInput(1, SnesButton.START);
+   * // Press START
+   * core.setInput(0, SnesButton.START);
    * 
-   * // Release all buttons on port 1
+   * // Release all buttons
    * core.setInput(0, 0);
    * ```
    */
@@ -259,9 +205,6 @@ export class SnesCore implements IEmulatorCore {
    * 
    * Save states are typically 150-300 KB depending on the game.
    * 
-   * Save states are tied to the specific core and ROM. Loading a state
-   * saved with a different core or ROM may cause crashes or corruption.
-   * 
    * @returns Uint8Array containing the serialized state
    * @throws Error if save states are not supported or emulator is not initialized
    */
@@ -273,16 +216,8 @@ export class SnesCore implements IEmulatorCore {
    * Load a previously saved state
    * 
    * Restores the emulator to exactly the state when saveState() was called.
-   * This is instantaneous and allows for:
-   * - Quick save/load functionality
-   * - Rewind feature (save states every frame)
-   * - Tool-assisted speedrun (TAS) creation
-   * - Testing specific game scenarios
    * 
-   * ⚠️ Warning: The state must have been created with:
-   * - The same core (snes9x state won't work with bsnes)
-   * - The same ROM
-   * - The same core version (may be incompatible across updates)
+   * ⚠️ Warning: The state must have been created with the same ROM.
    * 
    * @param state - Save state data from saveState()
    * @throws Error if state is invalid or incompatible
@@ -294,14 +229,7 @@ export class SnesCore implements IEmulatorCore {
   /**
    * Reset the emulator
    * 
-   * Equivalent to pressing the reset button on a real SNES console.
-   * This will:
-   * - Reset the CPU to the initial vector
-   * - Clear all RAM
-   * - Reset PPU and APU to power-on state
-   * - Preserve cartridge SRAM (battery-backed save data)
-   * 
-   * The ROM remains loaded after reset.
+   * Resets the emulator state. The ROM remains loaded after reset.
    */
   reset(): void {
     this.core.reset();
@@ -312,11 +240,6 @@ export class SnesCore implements IEmulatorCore {
    * 
    * Shuts down the emulator and frees all resources. After calling this,
    * the instance cannot be used anymore.
-   * 
-   * Should be called when:
-   * - Unmounting the emulator component
-   * - Loading a different core
-   * - Closing the application
    */
   cleanup(): void {
     this.core.cleanup();
@@ -325,22 +248,11 @@ export class SnesCore implements IEmulatorCore {
   /**
    * Get information about the core
    * 
-   * Returns metadata about the loaded core, including its name and version.
-   * This can be useful for debugging or displaying in the UI.
+   * Returns metadata about the loaded core.
    * 
    * @returns Object with core name and version
-   * 
-   * @example
-   * ```typescript
-   * const info = core.getCoreInfo();
-   * console.log(`Using ${info.name} version ${info.version}`);
-   * // Output: "Using Snes9x version 1.60"
-   * ```
    */
   getCoreInfo(): { name: string; version: string } {
-    if ('getCoreInfo' in this.core) {
-      return (this.core as Snes9xWasmCore).getCoreInfo();
-    }
-    return { name: 'Mock', version: 'demo' };
+    return this.core.getCoreInfo();
   }
 }

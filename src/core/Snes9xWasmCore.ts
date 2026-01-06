@@ -11,11 +11,58 @@ type ModuleLoader = () => Promise<Snes9xWasmModule>;
 const DEFAULT_SAMPLE_RATE = 48_000;
 
 /**
- * Skeleton implementation of a SNES9x WASM-backed emulator core.
+ * Default module loader for snes9x_2005 core.
+ * Loads the WASM module from /cores/snes9x_2005.js
+ */
+async function createDefaultModuleLoader(coreUrl: string): Promise<Snes9xWasmModule> {
+  return new Promise((resolve, reject) => {
+    // Create script element to load the Emscripten module
+    const script = document.createElement('script');
+    script.src = coreUrl;
+    script.async = true;
+
+    script.onload = () => {
+      // The Emscripten module creates a global factory function
+      const moduleFactory = (window as any).Module;
+      
+      if (!moduleFactory) {
+        reject(new Error('WASM module factory not found after loading script'));
+        return;
+      }
+
+      // Call the factory to instantiate the module
+      moduleFactory({
+        locateFile: (path: string) => {
+          // Ensure WASM file is loaded from the correct location
+          if (path.endsWith('.wasm')) {
+            return coreUrl.replace('.js', '.wasm');
+          }
+          return path;
+        },
+        onRuntimeInitialized: function(this: Snes9xWasmModule) {
+          // Clean up the global
+          delete (window as any).Module;
+          resolve(this);
+        },
+        onAbort: (error: string) => {
+          reject(new Error(`WASM module aborted: ${error}`));
+        },
+      });
+    };
+
+    script.onerror = () => {
+      reject(new Error(`Failed to load WASM module from ${coreUrl}`));
+    };
+
+    document.head.appendChild(script);
+  });
+}
+
+/**
+ * Implementation of a SNES9x WASM-backed emulator core.
  *
- * This class wires the {@link IEmulatorCore} interface to a provided
- * {@link Snes9xWasmModule}. The implementation intentionally keeps logic
- * minimal while establishing the structure for future, fuller features.
+ * This class wires the {@link IEmulatorCore} interface to the
+ * {@link Snes9xWasmModule} loaded from the snes9x_2005 core files.
  */
 export class Snes9xWasmCore implements IEmulatorCore {
   private module: Snes9xWasmModule | null = null;
@@ -30,25 +77,17 @@ export class Snes9xWasmCore implements IEmulatorCore {
   /**
    * Create a new Snes9xWasmCore instance.
    *
-   * @param coreName - Optional core name (kept for compatibility)
-   * @param coreUrl - Optional core URL (reserved for future loaders)
-   * @param moduleLoader - Optional loader returning a {@link Snes9xWasmModule}
+   * @param _coreName - Optional core name (unused, kept for compatibility)
+   * @param coreUrl - Optional core URL (default: '/cores/snes9x_2005.js')
+   * @param moduleLoader - Optional custom loader returning a {@link Snes9xWasmModule}
    */
   constructor(
-    coreName: string = 'snes9x_2005',
+    _coreName: string = 'snes9x_2005',
     coreUrl?: string,
     moduleLoader?: ModuleLoader
   ) {
-    this.moduleLoader =
-      moduleLoader ??
-      (() =>
-        Promise.reject(
-          new Error(
-            `Snes9xWasmCore loader not configured for ${coreName}${
-              coreUrl ? ` (${coreUrl})` : ''
-            }`
-          )
-        ));
+    const url = coreUrl || '/cores/snes9x_2005.js';
+    this.moduleLoader = moduleLoader ?? (() => createDefaultModuleLoader(url));
 
     this.sampleRate = DEFAULT_SAMPLE_RATE;
     this.videoBuffer = new ImageData(
