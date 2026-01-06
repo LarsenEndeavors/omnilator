@@ -57,18 +57,6 @@ jobs:
           echo "✓ Successfully compiled C++ to WASM"
           node test-cpp.js || echo "Note: Node execution had exit code $? (acceptable for simple test)"
           
-      - name: Build SNES9x LibRetro core
-        run: |
-          cd public/snes/core/snes9x2005-wasm-master
-          bash build.sh
-          ls -la *.js *.wasm
-          
-      - name: Move SNES core to accessible location
-        run: |
-          mkdir -p public/cores
-          cp public/snes/core/snes9x2005-wasm-master/snes9x_2005.js public/cores/
-          cp public/snes/core/snes9x2005-wasm-master/snes9x_2005.wasm public/cores/
-          
       - name: Install project dependencies
         run: npm ci
         

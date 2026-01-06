@@ -1,11 +1,20 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll, afterAll, vi } from 'vitest';
 import { SnesCore } from './SnesCore';
 import { SnesButton } from './IEmulatorCore';
 
-// Mock the LibRetroCore to avoid network calls
-vi.mock('./LibRetroCore', () => {
+// Mock console.warn to suppress fallback warnings in tests
+const originalWarn = console.warn;
+beforeAll(() => {
+  console.warn = vi.fn();
+});
+afterAll(() => {
+  console.warn = originalWarn;
+});
+
+// Mock the Snes9xWasmCore to avoid network calls
+vi.mock('./Snes9xWasmCore', () => {
   return {
-    LibRetroCore: class MockLibRetroCore {
+    Snes9xWasmCore: class MockSnes9xWasmCore {
       async initialize() {
         // Simulate network failure to test fallback
         throw new Error('Failed to load core from URL');
@@ -26,7 +35,7 @@ vi.mock('./LibRetroCore', () => {
       reset() {}
       cleanup() {}
       getCoreInfo() {
-        return { name: 'MockLibRetro', version: '1.0' };
+        return { name: 'MockSnes9x', version: '1.0' };
       }
     },
   };

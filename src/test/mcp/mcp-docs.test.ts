@@ -28,7 +28,7 @@ describe('mcp-docs MCP Server', () => {
       console.warn('mcp-docs server not available:', error);
       serverAvailable = false;
     }
-  }, 30000);
+  }, 60000); // Match hookTimeout from vitest config
 
   afterAll(async () => {
     if (client) {

@@ -112,9 +112,34 @@ export class MCPServerTestClient {
       throw new Error('No URL specified for HTTP server');
     }
 
-    // Just verify the URL is reachable (we'll make actual requests later)
-    // This is a lightweight check to ensure the server is up
-    return Promise.resolve();
+    // Make a simple test request to verify the server is reachable
+    try {
+      const response = await withTimeout(
+        fetch(this.config.url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...this.config.headers,
+          },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 0,
+            method: 'ping',
+            params: {},
+          }),
+        }),
+        5000,
+        'HTTP server validation timeout'
+      );
+
+      // Server responded - that's good enough for validation
+      // We don't care if it's a valid response, just that the server is reachable
+      if (response.status >= 500) {
+        throw new Error(`HTTP server error: ${response.status}`);
+      }
+    } catch (error) {
+      throw new Error(`HTTP server not reachable: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /**
@@ -206,8 +231,18 @@ export class MCPServerTestClient {
         throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
       }
 
-      const jsonResponse: JSONRPCResponse = await response.json();
-      return jsonResponse;
+      // Get response text first to handle empty responses
+      const responseText = await response.text();
+      if (!responseText || responseText.trim() === '') {
+        throw new Error('HTTP request failed: empty response from server');
+      }
+
+      try {
+        const jsonResponse: JSONRPCResponse = JSON.parse(responseText);
+        return jsonResponse;
+      } catch (parseError) {
+        throw new Error(`HTTP request failed: invalid JSON response - ${responseText.substring(0, 100)}`);
+      }
     } catch (error) {
       throw new Error(`HTTP request failed: ${error instanceof Error ? error.message : String(error)}`);
     }

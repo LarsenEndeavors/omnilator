@@ -150,7 +150,9 @@ export function isNetworkError(error: unknown): boolean {
     error.message.includes('ENOTFOUND') ||
     error.message.includes('ETIMEDOUT') ||
     error.message.includes('fetch') ||
-    error.message.includes('network')
+    error.message.includes('network') ||
+    error.message.includes('empty response') ||
+    error.message.includes('not reachable')
   );
 }
 

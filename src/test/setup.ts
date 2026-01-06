@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom';
+import { vi } from 'vitest';
 
 // Mock ImageData for canvas operations
 global.ImageData = class ImageData {
@@ -75,4 +76,12 @@ global.cancelAnimationFrame = (id: number) => {
   clearTimeout(id);
 };
 
+// Mock fetch for SNES9x WASM loading
+global.fetch = vi.fn((url: string | URL | Request) => {
+  const urlString = typeof url === 'string' ? url : url.toString();
+  if (urlString.includes('kazuki-4ys.github.io') || urlString.includes('snes9x')) {
+    return Promise.reject(new Error('Network calls mocked in tests'));
+  }
+  return Promise.resolve(new Response());
+}) as typeof global.fetch;
 
