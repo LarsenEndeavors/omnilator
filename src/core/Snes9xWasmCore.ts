@@ -16,41 +16,38 @@ const DEFAULT_SAMPLE_RATE = 48_000;
  */
 async function createDefaultModuleLoader(coreUrl: string): Promise<Snes9xWasmModule> {
   return new Promise((resolve, reject) => {
+    // Set up Module configuration before loading the script
+    // The Emscripten script will use this global Module object
+    const moduleConfig: Partial<Snes9xWasmModule> = {
+      locateFile: (path: string) => {
+        // Ensure WASM file is loaded from the correct location
+        if (path.endsWith('.wasm')) {
+          return coreUrl.replace('.js', '.wasm');
+        }
+        return path;
+      },
+      onRuntimeInitialized: function(this: Snes9xWasmModule) {
+        // Module is ready - resolve with it
+        resolve(this);
+        // Clean up the global
+        delete (window as any).Module;
+      },
+      onAbort: (error: string) => {
+        reject(new Error(`WASM module aborted: ${error}`));
+        delete (window as any).Module;
+      },
+    };
+
+    // Set the global Module object that the Emscripten script will use
+    (window as any).Module = moduleConfig;
+
     // Create script element to load the Emscripten module
     const script = document.createElement('script');
     script.src = coreUrl;
     script.async = true;
 
-    script.onload = () => {
-      // The Emscripten module creates a global factory function
-      const moduleFactory = (window as any).Module;
-      
-      if (!moduleFactory) {
-        reject(new Error('WASM module factory not found after loading script'));
-        return;
-      }
-
-      // Call the factory to instantiate the module
-      moduleFactory({
-        locateFile: (path: string) => {
-          // Ensure WASM file is loaded from the correct location
-          if (path.endsWith('.wasm')) {
-            return coreUrl.replace('.js', '.wasm');
-          }
-          return path;
-        },
-        onRuntimeInitialized: function(this: Snes9xWasmModule) {
-          // Clean up the global
-          delete (window as any).Module;
-          resolve(this);
-        },
-        onAbort: (error: string) => {
-          reject(new Error(`WASM module aborted: ${error}`));
-        },
-      });
-    };
-
     script.onerror = () => {
+      delete (window as any).Module;
       reject(new Error(`Failed to load WASM module from ${coreUrl}`));
     };
 
