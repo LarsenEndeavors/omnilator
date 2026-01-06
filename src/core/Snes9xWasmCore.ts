@@ -28,13 +28,12 @@ async function createDefaultModuleLoader(coreUrl: string): Promise<Snes9xWasmMod
       },
       onRuntimeInitialized: function(this: Snes9xWasmModule) {
         // Module is ready - resolve with it
+        // Note: Don't delete the global Module yet, as it's still being used
+        // The Emscripten runtime references Module internally
         resolve(this);
-        // Clean up the global
-        delete (window as any).Module;
       },
       onAbort: (error: string) => {
         reject(new Error(`WASM module aborted: ${error}`));
-        delete (window as any).Module;
       },
     };
 
