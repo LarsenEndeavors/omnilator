@@ -119,7 +119,7 @@ This document provides detailed task breakdowns for each phase in the [Project R
 
 ---
 
-### Task 1.3: Create Snes9xWasmCore Wrapper
+### Task 1.3: Create Snes9xWasmCore Wrapper _(Status: Complete via SNES-005 skeleton)_
 
 **Priority**: Critical  
 **Estimated Time**: 8 hours  
