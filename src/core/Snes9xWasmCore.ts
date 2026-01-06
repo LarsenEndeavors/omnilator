@@ -173,13 +173,8 @@ export class Snes9xWasmCore implements IEmulatorCore {
     if (port < 0 || port > 3) {
       throw new Error('Port must be between 0 and 3');
     }
+    // Store input state - it will be applied in runFrame() before each frame
     this.inputStates[port] = buttons;
-
-    // Current WASM core supports player 1 only; update immediately when available.
-    // Don't try to set input before ROM is loaded as it may cause issues
-    if (port === 0 && this.module && this.romLoaded) {
-      this.module._setJoypadInput(buttons);
-    }
   }
 
   /**

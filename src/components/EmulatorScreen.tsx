@@ -36,6 +36,7 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
   const [core] = useState(() => new SnesCore());
   const [audioSystem] = useState(() => new AudioSystem());
   const [isInitialized, setIsInitialized] = useState(false);
+  const [audioInitialized, setAudioInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveStates, setSaveStates] = useState<Map<number, Uint8Array>>(new Map());
   const [loadedRomName, setLoadedRomName] = useState<string | null>(null);
@@ -56,19 +57,12 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
     },
   });
 
-  // Initialize emulator
+  // Initialize emulator (but NOT audio - needs user interaction)
   useEffect(() => {
     const init = async () => {
       try {
         await core.initialize();
         setIsInitialized(true);
-        
-        // Try to initialize audio system (non-blocking)
-        try {
-          await audioSystem.initialize(core);
-        } catch (audioErr) {
-          console.warn('Audio system initialization failed, continuing without audio:', audioErr);
-        }
         
         // If ROM data is provided, load it
         if (romData) {
@@ -88,6 +82,19 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
     };
   }, [core, audioSystem, romData]);
 
+  // Initialize audio on user interaction (browser requirement)
+  const initializeAudio = async () => {
+    if (!audioInitialized) {
+      try {
+        await audioSystem.initialize(core);
+        setAudioInitialized(true);
+        console.log('Audio system initialized');
+      } catch (audioErr) {
+        console.error('Audio system initialization failed:', audioErr);
+      }
+    }
+  };
+
   // Sync audio playback with emulator state
   useEffect(() => {
     if (isRunning) {
@@ -100,6 +107,9 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    // Initialize audio on first user interaction
+    await initializeAudio();
 
     setIsLoadingRom(true);
     setError(null);
@@ -186,10 +196,10 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
 
       <div className="emulator-controls">
         <div className="control-group">
-          <button onClick={toggle} disabled={!isInitialized}>
+          <button onClick={async () => { await initializeAudio(); toggle(); }} disabled={!isInitialized}>
             {isRunning ? '⏸️ Pause' : '▶️ Play'}
           </button>
-          <button onClick={handleReset} disabled={!isInitialized}>
+          <button onClick={async () => { await initializeAudio(); handleReset(); }} disabled={!isInitialized}>
             🔄 Reset
           </button>
           <label className="file-upload-button">
