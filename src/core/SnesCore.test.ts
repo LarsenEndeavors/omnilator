@@ -4,15 +4,18 @@ import { SnesButton } from './IEmulatorCore';
 import type { Snes9xWasmModule } from './types/Snes9xWasmModule';
 
 // Mock successful WASM module for tests
-const createMockModule = (): Snes9xWasmModule => ({
-  HEAP8: new Int8Array(1024 * 1024),
-  HEAPU8: new Uint8Array(1024 * 1024),
-  HEAP16: new Int16Array(512 * 1024),
-  HEAPU16: new Uint16Array(512 * 1024),
-  HEAP32: new Int32Array(256 * 1024),
-  HEAPU32: new Uint32Array(256 * 1024),
-  HEAPF32: new Float32Array(256 * 1024),
-  HEAPF64: new Float64Array(128 * 1024),
+const createMockModule = (): Snes9xWasmModule => {
+  // Create a shared ArrayBuffer like real Emscripten modules
+  const buffer = new ArrayBuffer(16 * 1024 * 1024); // 16MB
+  return {
+    HEAP8: new Int8Array(buffer),
+    HEAPU8: new Uint8Array(buffer),
+    HEAP16: new Int16Array(buffer),
+    HEAPU16: new Uint16Array(buffer),
+    HEAP32: new Int32Array(buffer),
+    HEAPU32: new Uint32Array(buffer),
+    HEAPF32: new Float32Array(buffer),
+    HEAPF64: new Float64Array(buffer),
   _my_malloc: vi.fn().mockReturnValue(1024),
   _my_free: vi.fn(),
   _startWithRom: vi.fn(),
@@ -32,7 +35,8 @@ const createMockModule = (): Snes9xWasmModule => ({
   print: vi.fn(),
   printErr: vi.fn(),
   noExitRuntime: true,
-});
+  };
+};
 
 describe('SnesCore', () => {
   let core: SnesCore;
