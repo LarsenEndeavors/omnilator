@@ -1,6 +1,15 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll, afterAll, vi } from 'vitest';
 import { SnesCore } from './SnesCore';
 import { SnesButton } from './IEmulatorCore';
+
+// Mock console.warn to suppress fallback warnings in tests
+const originalWarn = console.warn;
+beforeAll(() => {
+  console.warn = vi.fn();
+});
+afterAll(() => {
+  console.warn = originalWarn;
+});
 
 // Mock the Snes9xWasmCore to avoid network calls
 vi.mock('./Snes9xWasmCore', () => {
