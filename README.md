@@ -4,6 +4,11 @@ A browser-based multiplayer emulator platform enabling users to play classic SNE
 
 ## 📚 Project Documentation
 
+> AGENT WILL REMOVE THIS AND REFRAME IT PROPERLY IN THE DOCUMENTATION
+>
+> The Emulatrix project has been cloned into the repository, this project works. From here we will hook up the UI and move forward.
+
+
 **New to the project?** Start here:
 
 - **[Quick Start Guide](docs/QUICK_START_GUIDE.md)** - Get oriented and start working on tasks
@@ -11,6 +16,7 @@ A browser-based multiplayer emulator platform enabling users to play classic SNE
 - **[Task Breakdown](docs/TASK_BREAKDOWN.md)** - Detailed task-by-task implementation guide
 
 **Technical Documentation**:
+
 - [Emscripten Setup Guide](docs/EMSCRIPTEN_SETUP.md) - ⚠️ **START HERE** for WebAssembly development
 - [Emulator Integration Guide](docs/EMULATOR_INTEGRATION.md)
 - [LibRetro Implementation Details](docs/LIBRETRO_IMPLEMENTATION.md)
@@ -19,7 +25,9 @@ A browser-based multiplayer emulator platform enabling users to play classic SNE
 ## 🎯 Current Status
 
 ### MVP Goal
+
 Browser-based SNES emulator with multiplayer support:
+
 - ✅ One device hosts the game session
 - ✅ Other devices join and play remotely
 - ✅ Real-time video/audio streaming
@@ -27,6 +35,7 @@ Browser-based SNES emulator with multiplayer support:
 - ✅ No installation required
 
 ### Development Phase
+
 **Phase 1: snes9xWASM Integration** (In Progress)
 
 We're currently integrating the actual snes9x2005-wasm emulator core to replace the mock implementation. The WASM source is located in `public/snes/core/snes9x2005-wasm-master/`.
@@ -56,6 +65,7 @@ See the [Project Roadmap](docs/PROJECT_ROADMAP.md) for the complete development 
 ### Prerequisites
 
 For building WebAssembly modules, you'll need:
+
 - **Node.js** 20.x or later
 - **Emscripten SDK** 3.1.51 (for building WASM cores)
 
@@ -122,6 +132,7 @@ curl -O https://buildbot.libretro.com/stable/latest/emscripten/snes9x_libretro.w
 ```
 
 **Available cores:**
+
 - `snes9x_libretro` - Fast, accurate (recommended)
 - `bsnes_libretro` - Maximum accuracy, slower
 - `mednafen_snes_libretro` - Good balance
@@ -281,6 +292,7 @@ npm run build
 ```
 
 Supported platforms:
+
 - GitHub Pages
 - Vercel
 - Netlify
@@ -321,6 +333,7 @@ Or configure your hosting to serve the `cores/` directory from `public/`.
 **Problem**: "Failed to load core" error
 
 **Solutions**:
+
 1. Check that core files exist in `public/cores/`
 2. Verify file paths in browser dev tools (Network tab)
 3. Check for CORS issues (cores must be served from same origin)
@@ -338,6 +351,7 @@ Or configure your hosting to serve the `cores/` directory from `public/`.
 **Problem**: ROM file upload fails or shows errors
 
 **Solutions**:
+
 1. Verify ROM is valid SNES format (.smc or .sfc)
 2. Check ROM file size (should be 512KB to 6MB typically)
 3. Ensure ROM is not corrupted
@@ -348,6 +362,7 @@ Or configure your hosting to serve the `cores/` directory from `public/`.
 **Problem**: No audio or choppy audio
 
 **Solutions**:
+
 1. Check browser autoplay policies (may require user interaction)
 2. Verify WebAudio API support in browser
 3. Try adjusting audio buffer size in `AudioSystem.ts`
@@ -357,6 +372,7 @@ Or configure your hosting to serve the `cores/` directory from `public/`.
 **Problem**: Emulator runs below 60 FPS
 
 **Solutions**:
+
 1. Check CPU usage in browser task manager
 2. Try the faster `snes9x` core instead of `bsnes`
 3. Close other browser tabs
@@ -403,4 +419,3 @@ Contributions are welcome! Please:
 ---
 
 **Note**: This emulator is for educational and preservation purposes. Always respect copyright laws and only use ROM files you legally own.
-
