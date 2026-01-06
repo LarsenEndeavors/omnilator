@@ -83,9 +83,12 @@ export class Snes9xWasmCore implements IEmulatorCore {
     }
 
     const romPtr = wasmMemoryHelpers.copyToWasm(this.module, romData);
-    this.module._startWithRom(romPtr, romData.length, this.sampleRate);
-    this.module._my_free(romPtr);
-    this.romLoaded = true;
+    try {
+      this.module._startWithRom(romPtr, romData.length, this.sampleRate);
+      this.romLoaded = true;
+    } finally {
+      this.module._my_free(romPtr);
+    }
   }
 
   /**
@@ -117,7 +120,7 @@ export class Snes9xWasmCore implements IEmulatorCore {
    * Get audio samples generated during the last frame.
    */
   getAudioSamples(): Float32Array {
-    return this.audioBuffer.slice();
+    return this.audioBuffer;
   }
 
   /**
@@ -159,9 +162,11 @@ export class Snes9xWasmCore implements IEmulatorCore {
       throw new Error('Failed to create save state');
     }
 
-    const state = wasmMemoryHelpers.copyFromWasm(this.module, statePtr, size);
-    this.module._my_free(statePtr);
-    return state;
+    try {
+      return wasmMemoryHelpers.copyFromWasm(this.module, statePtr, size);
+    } finally {
+      this.module._my_free(statePtr);
+    }
   }
 
   /**
@@ -191,7 +196,11 @@ export class Snes9xWasmCore implements IEmulatorCore {
    */
   reset(): void {
     this.inputStates = [0, 0, 0, 0];
-    this.audioBuffer = new Float32Array(AudioBufferConstants.TOTAL_SAMPLES);
+    if (this.module) {
+      this.module._setJoypadInput(0);
+    }
+    this.audioBuffer.fill(0);
+    this.videoBuffer.data.fill(0);
   }
 
   /**
@@ -215,16 +224,15 @@ export class Snes9xWasmCore implements IEmulatorCore {
       return;
     }
     const screenPtr = this.module._getScreenBuffer();
-    const frameData = new Uint8Array(
-      this.module.HEAP8.buffer,
+    if (!screenPtr) {
+      return;
+    }
+    const frameData = wasmMemoryHelpers.copyFromWasm(
+      this.module,
       screenPtr,
       VideoBufferConstants.TOTAL_SIZE
     );
-    this.videoBuffer = new ImageData(
-      new Uint8ClampedArray(frameData),
-      VideoBufferConstants.WIDTH,
-      VideoBufferConstants.HEIGHT
-    );
+    this.videoBuffer.data.set(frameData);
   }
 
   private captureAudio(): void {
@@ -232,11 +240,15 @@ export class Snes9xWasmCore implements IEmulatorCore {
       return;
     }
     const audioPtr = this.module._getSoundBuffer();
-    const samples = new Float32Array(
-      this.module.HEAP8.buffer,
+    if (!audioPtr) {
+      return;
+    }
+    const audioBytes = wasmMemoryHelpers.copyFromWasm(
+      this.module,
       audioPtr,
-      AudioBufferConstants.TOTAL_SAMPLES
+      AudioBufferConstants.TOTAL_SIZE
     );
-    this.audioBuffer = new Float32Array(samples);
+    const samples = new Float32Array(audioBytes.buffer);
+    this.audioBuffer.set(samples);
   }
 }
