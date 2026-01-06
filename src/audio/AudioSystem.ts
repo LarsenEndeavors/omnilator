@@ -18,14 +18,20 @@ export class AudioSystem {
    * Must be called after user interaction due to browser autoplay policies
    */
   async initialize(core: IEmulatorCore): Promise<void> {
-    if (this.isInitialized) return;
+    if (this.isInitialized) {
+      console.log('[AudioSystem] Already initialized');
+      return;
+    }
 
     try {
       this.core = core;
+      console.log('[AudioSystem] Creating AudioContext with 48kHz sample rate');
       this.audioContext = new AudioContext({ sampleRate: 48000 });
+      console.log(`[AudioSystem] AudioContext created, state: ${this.audioContext.state}`);
 
       // Load and register the audio worklet processor
       try {
+        console.log('[AudioSystem] Attempting to load AudioWorklet from /audio-processor.js');
         await this.audioContext.audioWorklet.addModule('/audio-processor.js');
         
         // Create the audio worklet node
@@ -46,12 +52,13 @@ export class AudioSystem {
         this.audioWorkletNode.port.onmessage = this.handleAudioRequest.bind(this);
 
         this.isInitialized = true;
+        console.log('[AudioSystem] AudioWorklet initialized successfully');
       } catch (workletError) {
-        console.warn('AudioWorklet not available, falling back to ScriptProcessor', workletError);
+        console.warn('[AudioSystem] AudioWorklet not available, falling back to ScriptProcessor', workletError);
         this.initializeFallback();
       }
     } catch (error) {
-      console.error('Failed to initialize audio system:', error);
+      console.error('[AudioSystem] Failed to initialize audio system:', error);
       throw error;
     }
   }
@@ -62,6 +69,7 @@ export class AudioSystem {
   private initializeFallback(): void {
     if (!this.audioContext) return;
 
+    console.log('[AudioSystem] Initializing ScriptProcessor fallback with 4096 buffer size');
     const bufferSize = 4096; // Match the WASM buffer size
     const processor = this.audioContext.createScriptProcessor(bufferSize, 0, 2);
 
@@ -72,6 +80,15 @@ export class AudioSystem {
       const outputR = event.outputBuffer.getChannelData(1);
       const samples = this.core.getAudioSamples();
 
+      // Debug: Check audio data periodically (every 60 frames = 1 second at 60fps)
+      if (Math.random() < 0.017) { // ~1/60 chance
+        let nonZeroCount = 0;
+        for (let i = 0; i < Math.min(10, samples.length); i++) {
+          if (samples[i] !== 0) nonZeroCount++;
+        }
+        console.log(`[AudioSystem] ScriptProcessor processing ${samples.length} samples (${nonZeroCount}/10 non-zero)`);
+      }
+
       // De-interleave stereo samples
       for (let i = 0; i < bufferSize; i++) {
         outputL[i] = samples[i * 2] || 0;
@@ -81,6 +98,7 @@ export class AudioSystem {
 
     processor.connect(this.audioContext.destination);
     this.isInitialized = true;
+    console.log('[AudioSystem] ScriptProcessor fallback initialized');
   }
 
   /**
@@ -89,6 +107,15 @@ export class AudioSystem {
   private handleAudioRequest(event: MessageEvent): void {
     if (event.data.type === 'request-samples' && this.core) {
       const samples = this.core.getAudioSamples();
+      
+      // Debug: Check if we're getting non-zero audio samples
+      let nonZeroCount = 0;
+      for (let i = 0; i < Math.min(10, samples.length); i++) {
+        if (samples[i] !== 0) nonZeroCount++;
+      }
+      
+      console.log(`[AudioSystem] Worklet requested samples, sending ${samples.length} samples (${nonZeroCount}/10 non-zero)`);
+      
       this.audioWorkletNode?.port.postMessage({
         type: 'samples',
         samples: samples,
@@ -101,7 +128,11 @@ export class AudioSystem {
    */
   async start(): Promise<void> {
     if (this.audioContext && this.audioContext.state === 'suspended') {
+      console.log('[AudioSystem] Resuming audio context');
       await this.audioContext.resume();
+      console.log(`[AudioSystem] Audio context state after resume: ${this.audioContext.state}`);
+    } else if (this.audioContext) {
+      console.log(`[AudioSystem] Audio context already in state: ${this.audioContext.state}`);
     }
   }
 

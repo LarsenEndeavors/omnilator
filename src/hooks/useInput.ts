@@ -98,6 +98,7 @@ export function useInput({
           }
         });
         
+        console.log(`[useInput] Key down: ${event.key}, new button state: 0x${newButtons.toString(16)}`);
         updateButtons(newButtons);
       }
     };
@@ -117,6 +118,7 @@ export function useInput({
           }
         });
         
+        console.log(`[useInput] Key up: ${event.key}, new button state: 0x${newButtons.toString(16)}`);
         updateButtons(newButtons);
       }
     };

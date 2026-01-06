@@ -139,7 +139,11 @@ export class Snes9xWasmCore implements IEmulatorCore {
 
     // Set input state before running the frame
     // Only player 1 input is supported by the current WASM build.
-    this.module._setJoypadInput(this.inputStates[0]);
+    const inputState = this.inputStates[0];
+    if (inputState !== 0) {
+      console.log(`[Snes9xWasmCore] runFrame: Setting input state 0x${inputState.toString(16)}`);
+    }
+    this.module._setJoypadInput(inputState);
     
     // Run one frame of emulation
     this.module._mainLoop();
@@ -174,7 +178,13 @@ export class Snes9xWasmCore implements IEmulatorCore {
       throw new Error('Port must be between 0 and 3');
     }
     // Store input state - it will be applied in runFrame() before each frame
+    const oldState = this.inputStates[port];
     this.inputStates[port] = buttons;
+    
+    // Debug logging for input changes
+    if (buttons !== oldState && buttons !== 0) {
+      console.log(`[Snes9xWasmCore] setInput: Port ${port} changed from 0x${oldState.toString(16)} to 0x${buttons.toString(16)}`);
+    }
   }
 
   /**
@@ -273,18 +283,34 @@ export class Snes9xWasmCore implements IEmulatorCore {
 
   private captureAudio(): void {
     if (!this.module) {
+      console.warn('[Snes9xWasmCore] captureAudio: module not initialized');
       return;
     }
     const audioPtr = this.module._getSoundBuffer();
     if (!audioPtr) {
+      console.warn('[Snes9xWasmCore] captureAudio: _getSoundBuffer returned null pointer');
       return;
     }
+    
     const audioBytes = wasmMemoryHelpers.copyFromWasm(
       this.module,
       audioPtr,
       AudioBufferConstants.TOTAL_SIZE
     );
     const samples = new Float32Array(audioBytes.buffer);
+    
+    // Debug: Check if we have actual audio data
+    let nonZeroCount = 0;
+    let maxAmplitude = 0;
+    for (let i = 0; i < Math.min(100, samples.length); i++) {
+      if (samples[i] !== 0) nonZeroCount++;
+      maxAmplitude = Math.max(maxAmplitude, Math.abs(samples[i]));
+    }
+    
+    if (nonZeroCount > 0) {
+      console.log(`[Snes9xWasmCore] captureAudio: Got ${samples.length} samples, ${nonZeroCount}/100 non-zero, max amplitude: ${maxAmplitude.toFixed(4)}`);
+    }
+    
     this.audioBuffer.set(samples);
   }
 }

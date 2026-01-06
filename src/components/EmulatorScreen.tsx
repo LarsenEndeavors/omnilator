@@ -86,12 +86,15 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
   const initializeAudio = async () => {
     if (!audioInitialized) {
       try {
+        console.log('[EmulatorScreen] Initializing audio system...');
         await audioSystem.initialize(core);
         setAudioInitialized(true);
-        console.log('Audio system initialized');
+        console.log('[EmulatorScreen] Audio system initialized successfully');
       } catch (audioErr) {
-        console.error('Audio system initialization failed:', audioErr);
+        console.error('[EmulatorScreen] Audio system initialization failed:', audioErr);
       }
+    } else {
+      console.log('[EmulatorScreen] Audio already initialized');
     }
   };
 
@@ -109,20 +112,23 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
     if (!file) return;
 
     // Initialize audio on first user interaction
+    console.log('[EmulatorScreen] Load ROM button clicked, initializing audio...');
     await initializeAudio();
 
     setIsLoadingRom(true);
     setError(null);
 
     try {
+      console.log(`[EmulatorScreen] Loading ROM file: ${file.name} (${file.size} bytes)`);
       const arrayBuffer = await file.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
       await core.loadROM(uint8Array);
       setLoadedRomName(file.name);
       setError(null);
+      console.log('[EmulatorScreen] ROM loaded successfully');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load ROM');
-      console.error('ROM load error:', err);
+      console.error('[EmulatorScreen] ROM load error:', err);
       setLoadedRomName(null);
     } finally {
       setIsLoadingRom(false);
