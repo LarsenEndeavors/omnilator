@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { SnesButton } from '../core/IEmulatorCore';
 
 /**
@@ -71,11 +71,15 @@ export function useInput({
 }: UseInputOptions = {}): UseInputResult {
   const [buttons, setButtons] = useState(0);
   const [isGamepadConnected, setIsGamepadConnected] = useState(false);
+  const [keyboardButtons, setKeyboardButtons] = useState(0);
+  const [gamepadButtons, setGamepadButtons] = useState(0);
 
-  const updateButtons = useCallback((newButtons: number) => {
-    setButtons(newButtons);
-    onInputChange?.(newButtons);
-  }, [onInputChange]);
+  // Combine keyboard and gamepad inputs
+  useEffect(() => {
+    const combined = keyboardButtons | gamepadButtons;
+    setButtons(combined);
+    onInputChange?.(combined);
+  }, [keyboardButtons, gamepadButtons, onInputChange]);
 
   // Keyboard event handlers
   useEffect(() => {
@@ -99,7 +103,7 @@ export function useInput({
         });
         
         console.log(`[useInput] Key down: ${event.key}, new button state: 0x${newButtons.toString(16)}`);
-        updateButtons(newButtons);
+        setKeyboardButtons(newButtons);
       }
     };
 
@@ -119,7 +123,7 @@ export function useInput({
         });
         
         console.log(`[useInput] Key up: ${event.key}, new button state: 0x${newButtons.toString(16)}`);
-        updateButtons(newButtons);
+        setKeyboardButtons(newButtons);
       }
     };
 
@@ -130,19 +134,21 @@ export function useInput({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [enabled, updateButtons]);
+  }, [enabled]);
 
   // Gamepad polling
   useEffect(() => {
     if (!enabled) return;
 
     let animationFrameId: number;
+    let hasGamepad = false;
 
     const pollGamepad = () => {
       const gamepads = navigator.getGamepads();
       const gamepad = gamepads[port];
 
       if (gamepad) {
+        hasGamepad = true;
         setIsGamepadConnected(true);
         
         let newButtons = 0;
@@ -166,9 +172,14 @@ export function useInput({
           if (gamepad.axes[1] > threshold) newButtons |= SnesButton.DOWN;
         }
 
-        updateButtons(newButtons);
+        setGamepadButtons(newButtons);
       } else {
-        setIsGamepadConnected(false);
+        if (hasGamepad) {
+          // Gamepad was disconnected, clear gamepad buttons
+          hasGamepad = false;
+          setIsGamepadConnected(false);
+          setGamepadButtons(0);
+        }
       }
 
       animationFrameId = requestAnimationFrame(pollGamepad);
@@ -182,6 +193,7 @@ export function useInput({
     const handleGamepadDisconnected = (event: GamepadEvent) => {
       console.log('Gamepad disconnected:', event.gamepad.id);
       setIsGamepadConnected(false);
+      setGamepadButtons(0);
     };
 
     window.addEventListener('gamepadconnected', handleGamepadConnected);
@@ -194,7 +206,7 @@ export function useInput({
       window.removeEventListener('gamepaddisconnected', handleGamepadDisconnected);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [enabled, port, updateButtons]);
+  }, [enabled, port]);
 
   return {
     buttons,

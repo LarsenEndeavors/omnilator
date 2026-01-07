@@ -7,6 +7,7 @@ class EmulatorAudioProcessor extends AudioWorkletProcessor {
     super();
     this.sampleBuffer = [];
     this.volume = 1.0;
+    this.requestPending = false;
     
     this.port.onmessage = (event) => {
       if (event.data.type === 'samples') {
@@ -15,6 +16,7 @@ class EmulatorAudioProcessor extends AudioWorkletProcessor {
         for (let i = 0; i < samples.length; i++) {
           this.sampleBuffer.push(samples[i]);
         }
+        this.requestPending = false;
       } else if (event.data.type === 'set-volume') {
         this.volume = event.data.volume;
       }
@@ -26,9 +28,11 @@ class EmulatorAudioProcessor extends AudioWorkletProcessor {
     const outputL = output[0];
     const outputR = output[1];
 
-    // Request more samples if buffer is running low (less than 2 frames worth)
-    if (this.sampleBuffer.length < 256) {
+    // Request more samples if buffer is running low and no request is pending
+    // Keep buffer with at least 1024 samples (512 stereo pairs = ~10ms at 48kHz)
+    if (this.sampleBuffer.length < 1024 && !this.requestPending) {
       this.port.postMessage({ type: 'request-samples' });
+      this.requestPending = true;
     }
 
     for (let i = 0; i < outputL.length; i++) {
