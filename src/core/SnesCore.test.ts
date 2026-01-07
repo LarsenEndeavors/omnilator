@@ -1,77 +1,71 @@
-import { describe, it, expect, beforeEach, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SnesCore } from './SnesCore';
 import { SnesButton } from './IEmulatorCore';
+import type { Snes9xWasmModule } from './types/Snes9xWasmModule';
 
-// Mock console.warn to suppress fallback warnings in tests
-const originalWarn = console.warn;
-beforeAll(() => {
-  console.warn = vi.fn();
-});
-afterAll(() => {
-  console.warn = originalWarn;
-});
-
-// Mock the Snes9xWasmCore to avoid network calls
-vi.mock('./Snes9xWasmCore', () => {
+// Mock successful WASM module for tests
+const createMockModule = (): Snes9xWasmModule => {
+  // Create a shared ArrayBuffer like real Emscripten modules
+  const buffer = new ArrayBuffer(16 * 1024 * 1024); // 16MB
   return {
-    Snes9xWasmCore: class MockSnes9xWasmCore {
-      async initialize() {
-        // Simulate network failure to test fallback
-        throw new Error('Failed to load core from URL');
-      }
-      async loadROM() {}
-      async runFrame() {}
-      getBuffer() {
-        return new ImageData(256, 224);
-      }
-      getAudioSamples() {
-        return new Float32Array(2048);
-      }
-      setInput() {}
-      saveState() {
-        return new Uint8Array(1024);
-      }
-      loadState() {}
-      reset() {}
-      cleanup() {}
-      getCoreInfo() {
-        return { name: 'MockSnes9x', version: '1.0' };
-      }
-    },
+    HEAP8: new Int8Array(buffer),
+    HEAPU8: new Uint8Array(buffer),
+    HEAP16: new Int16Array(buffer),
+    HEAPU16: new Uint16Array(buffer),
+    HEAP32: new Int32Array(buffer),
+    HEAPU32: new Uint32Array(buffer),
+    HEAPF32: new Float32Array(buffer),
+    HEAPF64: new Float64Array(buffer),
+  _my_malloc: vi.fn().mockReturnValue(1024),
+  _my_free: vi.fn(),
+  _startWithRom: vi.fn(),
+  _mainLoop: vi.fn(),
+  _setJoypadInput: vi.fn(),
+  _getScreenBuffer: vi.fn().mockReturnValue(2048),
+  _getSoundBuffer: vi.fn().mockReturnValue(4096),
+  _saveSramRequest: vi.fn(),
+  _getSaveSramSize: vi.fn().mockReturnValue(0),
+  _getSaveSram: vi.fn().mockReturnValue(0),
+  _loadSram: vi.fn(),
+  _getStateSaveSize: vi.fn().mockReturnValue(256 * 1024),
+  _saveState: vi.fn().mockReturnValue(8192),
+  _loadState: vi.fn().mockReturnValue(true),
+  cwrap: vi.fn(),
+  locateFile: vi.fn(),
+  print: vi.fn(),
+  printErr: vi.fn(),
+  noExitRuntime: true,
   };
-});
+};
 
 describe('SnesCore', () => {
   let core: SnesCore;
 
   beforeEach(() => {
-    core = new SnesCore();
+    // Create core with mock module loader
+    core = new SnesCore('snes9x_2005', undefined);
   });
 
   describe('initialization', () => {
-    it('should initialize and fall back to mock mode', async () => {
-      await core.initialize();
-      expect(core.isInMockMode()).toBe(true);
-    });
-
-    it('should not throw on initialization', async () => {
-      await expect(core.initialize()).resolves.toBeUndefined();
-    });
-  });
-
-  describe('mock mode detection', () => {
-    it('should report mock mode after initialization', async () => {
-      await core.initialize();
-      expect(core.isInMockMode()).toBe(true);
-    });
-
-    it('should report not in mock mode before initialization', () => {
-      expect(core.isInMockMode()).toBe(false);
+    it('should initialize successfully with WASM core', async () => {
+      // Mock the module loader
+      const mockCore = new SnesCore(
+        'snes9x_2005',
+        '/cores/snes9x_2005.js',
+        async () => createMockModule()
+      );
+      await expect(mockCore.initialize()).resolves.toBeUndefined();
     });
   });
 
   describe('ROM loading', () => {
     beforeEach(async () => {
+      // Use mock module loader
+      core = new SnesCore(
+        'snes9x_2005',
+        '/cores/snes9x_2005.js',
+        async () => createMockModule()
+      );
       await core.initialize();
     });
 
@@ -91,14 +85,23 @@ describe('SnesCore', () => {
 
   describe('frame execution', () => {
     beforeEach(async () => {
+      core = new SnesCore(
+        'snes9x_2005',
+        '/cores/snes9x_2005.js',
+        async () => createMockModule()
+      );
       await core.initialize();
     });
 
     it('should run frames', async () => {
+      const romData = new Uint8Array(512 * 1024);
+      await core.loadROM(romData);
       await expect(core.runFrame()).resolves.toBeUndefined();
     });
 
     it('should run multiple consecutive frames', async () => {
+      const romData = new Uint8Array(512 * 1024);
+      await core.loadROM(romData);
       for (let i = 0; i < 10; i++) {
         await expect(core.runFrame()).resolves.toBeUndefined();
       }
@@ -107,24 +110,34 @@ describe('SnesCore', () => {
 
   describe('video output', () => {
     beforeEach(async () => {
+      core = new SnesCore(
+        'snes9x_2005',
+        '/cores/snes9x_2005.js',
+        async () => createMockModule()
+      );
       await core.initialize();
     });
 
     it('should return valid ImageData', () => {
       const buffer = core.getBuffer();
       expect(buffer).toBeInstanceOf(ImageData);
-      expect(buffer.width).toBe(256);
-      expect(buffer.height).toBe(224);
+      expect(buffer.width).toBe(512);
+      expect(buffer.height).toBe(448);
     });
 
     it('should return RGBA format', () => {
       const buffer = core.getBuffer();
-      expect(buffer.data.length).toBe(256 * 224 * 4);
+      expect(buffer.data.length).toBe(512 * 448 * 4);
     });
   });
 
   describe('audio output', () => {
     beforeEach(async () => {
+      core = new SnesCore(
+        'snes9x_2005',
+        '/cores/snes9x_2005.js',
+        async () => createMockModule()
+      );
       await core.initialize();
     });
 
@@ -141,6 +154,11 @@ describe('SnesCore', () => {
 
   describe('input handling', () => {
     beforeEach(async () => {
+      core = new SnesCore(
+        'snes9x_2005',
+        '/cores/snes9x_2005.js',
+        async () => createMockModule()
+      );
       await core.initialize();
     });
 
@@ -164,7 +182,14 @@ describe('SnesCore', () => {
 
   describe('save states', () => {
     beforeEach(async () => {
+      core = new SnesCore(
+        'snes9x_2005',
+        '/cores/snes9x_2005.js',
+        async () => createMockModule()
+      );
       await core.initialize();
+      const romData = new Uint8Array(512 * 1024);
+      await core.loadROM(romData);
     });
 
     it('should create save states', () => {
@@ -173,7 +198,7 @@ describe('SnesCore', () => {
     });
 
     it('should load save states', () => {
-      const state = new Uint8Array(1024);
+      const state = new Uint8Array(256 * 1024);
       expect(() => core.loadState(state)).not.toThrow();
     });
 
@@ -185,7 +210,14 @@ describe('SnesCore', () => {
 
   describe('reset', () => {
     beforeEach(async () => {
+      core = new SnesCore(
+        'snes9x_2005',
+        '/cores/snes9x_2005.js',
+        async () => createMockModule()
+      );
       await core.initialize();
+      const romData = new Uint8Array(512 * 1024);
+      await core.loadROM(romData);
     });
 
     it('should reset without errors', () => {
@@ -200,6 +232,11 @@ describe('SnesCore', () => {
 
   describe('cleanup', () => {
     beforeEach(async () => {
+      core = new SnesCore(
+        'snes9x_2005',
+        '/cores/snes9x_2005.js',
+        async () => createMockModule()
+      );
       await core.initialize();
     });
 
@@ -214,17 +251,19 @@ describe('SnesCore', () => {
   });
 
   describe('core info', () => {
-    it('should return core info before initialization', () => {
+    beforeEach(async () => {
+      core = new SnesCore(
+        'snes9x_2005',
+        '/cores/snes9x_2005.js',
+        async () => createMockModule()
+      );
+    });
+
+    it('should return core info after initialization', async () => {
+      await core.initialize();
       const info = core.getCoreInfo();
       expect(info).toHaveProperty('name');
       expect(info).toHaveProperty('version');
-    });
-
-    it('should return mock info in mock mode', async () => {
-      await core.initialize();
-      const info = core.getCoreInfo();
-      expect(info.name).toBe('Mock');
-      expect(info.version).toBe('demo');
     });
   });
 
@@ -242,50 +281,55 @@ describe('SnesCore', () => {
 
   describe('full workflow', () => {
     it('should handle complete emulation cycle', async () => {
+      const workflowCore = new SnesCore(
+        'snes9x_2005',
+        '/cores/snes9x_2005.js',
+        async () => createMockModule()
+      );
+
       // Initialize
-      await core.initialize();
-      expect(core.isInMockMode()).toBe(true);
+      await workflowCore.initialize();
       
       // Load ROM
       const romData = new Uint8Array(1024 * 1024);
-      await core.loadROM(romData);
+      await workflowCore.loadROM(romData);
       
       // Set input
-      core.setInput(0, SnesButton.A | SnesButton.B);
+      workflowCore.setInput(0, SnesButton.A | SnesButton.B);
       
       // Run some frames
       for (let i = 0; i < 60; i++) {
-        await core.runFrame();
+        await workflowCore.runFrame();
       }
       
       // Get output
-      const buffer = core.getBuffer();
-      const audio = core.getAudioSamples();
-      expect(buffer.width).toBe(256);
+      const buffer = workflowCore.getBuffer();
+      const audio = workflowCore.getAudioSamples();
+      expect(buffer.width).toBe(512);
       expect(audio).toBeInstanceOf(Float32Array);
       
       // Save state
-      const state = core.saveState();
+      const state = workflowCore.saveState();
       expect(state.length).toBeGreaterThan(0);
       
       // Continue running
-      await core.runFrame();
+      await workflowCore.runFrame();
       
       // Load state
-      core.loadState(state);
+      workflowCore.loadState(state);
       
       // Reset
-      core.reset();
+      workflowCore.reset();
       
       // More frames
-      await core.runFrame();
+      await workflowCore.runFrame();
       
       // Get core info
-      const info = core.getCoreInfo();
+      const info = workflowCore.getCoreInfo();
       expect(info.name).toBeDefined();
       
       // Cleanup
-      core.cleanup();
+      workflowCore.cleanup();
     });
   });
 });

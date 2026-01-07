@@ -1,168 +1,63 @@
-# Omnilator - Browser-Based Multiplayer Emulator
+# Omnilator - Browser-Based SNES Emulator
 
-A browser-based multiplayer emulator platform enabling users to play classic SNES games from anywhere. One user hosts the game session, others join and play together in real-time. All functionality runs entirely in modern web browsers with no installation required.
-
-## 📚 Project Documentation
-
-> AGENT WILL REMOVE THIS AND REFRAME IT PROPERLY IN THE DOCUMENTATION
->
-> The Emulatrix project has been cloned into the repository, this project works. From here we will hook up the UI and move forward.
-
-
-**New to the project?** Start here:
-
-- **[Quick Start Guide](docs/QUICK_START_GUIDE.md)** - Get oriented and start working on tasks
-- **[Project Roadmap](docs/PROJECT_ROADMAP.md)** - Strategic overview and development phases
-- **[Task Breakdown](docs/TASK_BREAKDOWN.md)** - Detailed task-by-task implementation guide
-
-**Technical Documentation**:
-
-- [Emscripten Setup Guide](docs/EMSCRIPTEN_SETUP.md) - ⚠️ **START HERE** for WebAssembly development
-- [Emulator Integration Guide](docs/EMULATOR_INTEGRATION.md)
-- [LibRetro Implementation Details](docs/LIBRETRO_IMPLEMENTATION.md)
-- [Snes9x WASM Implementation Plan](docs/SNES9XWASM_IMPLEMENTATION_PLAN.md)
-
-## 🎯 Current Status
-
-### MVP Goal
-
-Browser-based SNES emulator with multiplayer support:
-
-- ✅ One device hosts the game session
-- ✅ Other devices join and play remotely
-- ✅ Real-time video/audio streaming
-- ✅ Input synchronization across devices
-- ✅ No installation required
-
-### Development Phase
-
-**Phase 1: snes9xWASM Integration** (In Progress)
-
-We're currently integrating the actual snes9x2005-wasm emulator core to replace the mock implementation. The WASM source is located in `public/snes/core/snes9x2005-wasm-master/`.
-
-See the [Project Roadmap](docs/PROJECT_ROADMAP.md) for the complete development plan.
-
-## Issues
-
-- Libretro Implementation Failed, have packaged the snes9x wasm package in `public/snes/core/snes9x2005-wasm-master/`
-  - Side Note: Included 4 .smc Roms in `public/snes/test_roms/`
+A modern web-based SNES emulator built with React, TypeScript, and WebAssembly. Play classic SNES games directly in your browser with no installation required.
 
 ## Features
 
-- ~~🎮 **LibRetro Core Integration**: Full SNES emulation using libretro API~~
-- Need to replace LibRetro integration with `src/assets/snes/core/snes9x2005-wasm-master/`
-- Included 4 .smc Roms in `src/assets/snes/test_roms/`
-- 🖼️ **Canvas Rendering**: 60 FPS hardware-accelerated rendering with requestAnimationFrame
-- ⌨️ **Input Support**: Keyboard and Gamepad API with full SNES controller mapping
+- 🎮 **SNES9x WASM Core**: Real SNES emulation using snes9x2005 core from Emulatrix
+- 🖼️ **60 FPS Rendering**: Hardware-accelerated canvas rendering
+- ⌨️ **Full Input Support**: Keyboard and gamepad with complete SNES controller mapping
 - 🔊 **Low-Latency Audio**: WebAudio API with AudioWorklet processor
-- 💾 **Save States**: 4-slot save/load state system
-- 📁 **ROM Loading**: Support for .smc and .sfc ROM files
-- 🎨 **Modern UI**: Responsive design with real-time stats display
-- 🔄 **Automatic Fallback**: Demo mode when cores are unavailable
+- 💾 **Save States**: 4-slot save/load system for your progress
+- 📁 **ROM Loading**: Supports .smc and .sfc ROM files
+- 🎨 **Modern UI**: Clean, responsive interface with real-time FPS counter
 
 ## Quick Start
-
-### Prerequisites
-
-For building WebAssembly modules, you'll need:
-
-- **Node.js** 20.x or later
-- **Emscripten SDK** 3.1.51 (for building WASM cores)
-
-See **[Emscripten Setup Guide](docs/EMSCRIPTEN_SETUP.md)** for detailed installation instructions.
 
 ### Installation
 
 ```bash
+# Install dependencies
 npm install
-```
 
-### Emscripten Setup (Required for Building WASM Cores)
-
-**Quick Setup:**
-
-```bash
-# Clone Emscripten SDK
-git clone https://github.com/emscripten-core/emsdk.git
-cd emsdk
-
-# Install and activate version 3.1.51
-./emsdk install 3.1.51
-./emsdk activate 3.1.51
-source ./emsdk_env.sh
-
-# Verify installation
-emcc --version  # Should show 3.1.51
-```
-
-**Verify your setup:**
-
-```bash
-./scripts/verify-emscripten.sh
-```
-
-For detailed instructions, troubleshooting, and alternative installation methods, see the complete **[Emscripten Setup Guide](docs/EMSCRIPTEN_SETUP.md)**.
-
-### Running in Demo Mode
-
-The emulator includes a demo mode that works without additional setup:
-
-```bash
+# Start development server
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser. You'll see a demo with animated gradient pattern and button indicators.
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-### Setting Up Real Emulation
-
-To enable actual SNES ROM emulation, you need to download a LibRetro core:
-
-#### Step 1: Download LibRetro Core
-
-Download the SNES core from [LibRetro buildbot](https://buildbot.libretro.com/stable/latest/emscripten/):
+### Building for Production
 
 ```bash
-# Create cores directory
-mkdir -p public/cores
-
-# Download snes9x core (recommended)
-cd public/cores
-curl -O https://buildbot.libretro.com/stable/latest/emscripten/snes9x_libretro.js
-curl -O https://buildbot.libretro.com/stable/latest/emscripten/snes9x_libretro.wasm
-```
-
-**Available cores:**
-
-- `snes9x_libretro` - Fast, accurate (recommended)
-- `bsnes_libretro` - Maximum accuracy, slower
-- `mednafen_snes_libretro` - Good balance
-
-#### Step 2: Configure Core Path
-
-Update `src/components/EmulatorScreen.tsx` to use the local core:
-
-```typescript
-const [core] = useState(() => new SnesCore('snes9x', '/cores/snes9x_libretro.js'));
-```
-
-Or use environment variables (recommended for production):
-
-```typescript
-const coreUrl = import.meta.env.VITE_CORE_URL || '/cores/snes9x_libretro.js';
-const [core] = useState(() => new SnesCore('snes9x', coreUrl));
-```
-
-#### Step 3: Add ROM Files
-
-Place your legally obtained SNES ROM files (.smc or .sfc) in a location accessible to the application. ROMs are not included due to copyright restrictions.
-
-### Build for Production
-
-```bash
+# Build optimized production bundle
 npm run build
+
+# Preview production build locally
+npm run preview
 ```
 
-The built files will be in the `dist/` directory. Make sure to include the `cores/` directory when deploying.
+The built files will be in the `dist/` directory.
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run tests with coverage
+npm test:coverage
+
+# Run tests in watch mode (for development)
+npm test -- --watch
+```
+
+### Loading ROMs
+
+1. Click "📁 Load ROM" button
+2. Select a .smc or .sfc ROM file from your computer
+3. Click "▶️ Play" to start emulation
+
+**Note**: Only use ROM files you legally own. ROMs are copyrighted material.
 
 ## Controls
 
@@ -187,45 +82,21 @@ Standard gamepad mapping is supported with automatic detection. Connect a gamepa
 ### Core Components
 
 - **IEmulatorCore**: Interface defining emulator operations (loadROM, runFrame, getBuffer, etc.)
-- **LibRetroCore**: Complete libretro API implementation (1,001 lines)
-  - WASM module loading and initialization
-  - Video refresh with pixel format conversion (RGB565/XRGB8888/RGB1555 → RGBA)
-  - Audio sample handling (int16 → float32)
-  - Input state management for 4 controller ports
-  - Save state serialization/deserialization
-- **SnesCore**: SNES-specific wrapper around LibRetroCore
-- **MockSnesCore**: Demo implementation for fallback mode
-- **EmulatorScreen**: Main React component with canvas and controls
-- **useEmulator**: Custom hook managing the rendering loop
-- **useInput**: Custom hook for keyboard and gamepad input
-- **AudioSystem**: WebAudio-based audio streaming system
+- **Snes9xWasmCore**: WASM module wrapper that loads and communicates with the snes9x2005 core
+- **SnesCore**: High-level SNES emulator interface that wraps Snes9xWasmCore
+- **EmulatorScreen**: Main React component with canvas, controls, and save state management
+- **useEmulator**: Custom hook managing the 60 FPS rendering loop
+- **useInput**: Custom hook for keyboard and gamepad input handling
+- **AudioSystem**: WebAudio-based audio streaming with AudioWorklet support
 
 ### How It Works
 
-1. **Initialization**: `SnesCore` attempts to load the LibRetro WASM core
-2. **Fallback**: If core loading fails, automatically switches to `MockSnesCore`
-3. **ROM Loading**: User loads ROM file through UI, data passed to core
-4. **Emulation Loop**: 60 FPS loop calls `runFrame()` on the core
-5. **Rendering**: Core returns video frame (ImageData) and audio samples
-6. **Display**: Canvas renders frame, WebAudio plays samples
-
-### Automatic Fallback Mode
-
-If the LibRetro core fails to load (network issues, CORS, missing files), the emulator automatically falls back to demo mode:
-
-- ✅ Works without network access
-- ✅ Shows animated gradient pattern
-- ✅ Displays button press indicators
-- ✅ Shows clear "DEMO MODE" banner
-- ✅ Provides console warnings with setup instructions
-
-Check if running in mock mode:
-
-```typescript
-if (core.isInMockMode()) {
-  console.warn('Running in demo mode');
-}
-```
+1. **Initialization**: `SnesCore` loads the snes9x2005 WASM module from `/cores/snes9x_2005.js`
+2. **Module Loading**: Emscripten's Module pattern initializes the WASM with proper file paths
+3. **ROM Loading**: User selects ROM file, data is uploaded to WASM memory heap
+4. **Emulation Loop**: 60 FPS loop calls `runFrame()` which executes one frame in the WASM core
+5. **Rendering**: Core writes video buffer (512x448 RGBA) and audio samples to memory
+6. **Display**: Canvas renders the frame, WebAudio plays the audio samples
 
 ### Project Structure
 
@@ -233,118 +104,63 @@ if (core.isInMockMode()) {
 omnilator/
 ├── src/
 │   ├── core/
-│   │   ├── IEmulatorCore.ts      # Core emulator interface
-│   │   ├── LibRetroCore.ts       # LibRetro implementation (1,001 lines)
-│   │   ├── SnesCore.ts           # SNES wrapper with fallback
-│   │   └── MockSnesCore.ts       # Demo implementation
+│   │   ├── IEmulatorCore.ts         # Core emulator interface
+│   │   ├── Snes9xWasmCore.ts        # WASM module wrapper
+│   │   ├── SnesCore.ts              # SNES-specific wrapper
+│   │   └── types/                   # TypeScript type definitions
 │   ├── components/
-│   │   ├── EmulatorScreen.tsx    # Main emulator UI
-│   │   └── EmulatorScreen.css    # Styles
+│   │   ├── EmulatorScreen.tsx       # Main emulator UI
+│   │   └── EmulatorScreen.css       # Styles
 │   ├── hooks/
-│   │   ├── useEmulator.ts        # Emulator lifecycle hook
-│   │   └── useInput.ts           # Input handling hook
+│   │   ├── useEmulator.ts           # Emulator lifecycle hook
+│   │   └── useInput.ts              # Input handling hook
 │   ├── audio/
-│   │   └── AudioSystem.ts        # Audio management
+│   │   └── AudioSystem.ts           # Audio management
 │   └── data/
-│       └── games.json            # Game library metadata
+│       └── games.json               # Game metadata
 ├── public/
-│   ├── cores/                    # LibRetro cores (download separately)
-│   │   ├── snes9x_libretro.js
-│   │   └── snes9x_libretro.wasm
-│   └── audio-processor.js        # WebAudio worklet
+│   ├── cores/
+│   │   ├── snes9x_2005.js           # Emscripten glue code
+│   │   ├── snes9x_2005.wasm         # SNES9x WASM binary
+│   │   └── Emulatrix/               # Additional cores from Emulatrix
+│   └── audio-processor.js           # WebAudio worklet
 └── docs/
-    ├── EMULATOR_INTEGRATION.md   # Integration guide
-    └── LIBRETRO_IMPLEMENTATION.md # Technical reference
+    ├── EMULATOR_INTEGRATION.md      # Integration guide
+    ├── PROJECT_ROADMAP.md           # Development roadmap
+    └── QUICK_START_GUIDE.md         # Quick start for developers
 ```
-
-## Documentation
-
-- **[EMULATOR_INTEGRATION.md](docs/EMULATOR_INTEGRATION.md)**: Quick start guide, fallback behavior, and hosting instructions
-- **[LIBRETRO_IMPLEMENTATION.md](docs/LIBRETRO_IMPLEMENTATION.md)**: Technical deep dive
-  - LibRetro API details
-  - Pixel format conversion algorithms
-  - Memory management best practices
-  - Performance optimization tips
-  - Troubleshooting guide
-
-## Testing
-
-### Manual Testing
-
-1. Start the dev server: `npm run dev`
-2. Load a ROM file using the file picker
-3. Test controls with keyboard or gamepad
-4. Try save states (slots 1-4)
-5. Test reset and pause/play
-
-### Automated Testing
-
-(Coming soon - see issue #X for test infrastructure setup)
-
-## Deployment
-
-### Static Hosting
-
-Build and deploy the `dist/` folder to any static hosting service:
-
-```bash
-npm run build
-```
-
-Supported platforms:
-
-- GitHub Pages
-- Vercel
-- Netlify
-- Cloudflare Pages
-
-### Important: Include Cores
-
-Make sure to include the `cores/` directory in your deployment:
-
-```bash
-# Example: Copy cores to dist for deployment
-cp -r public/cores dist/
-```
-
-Or configure your hosting to serve the `cores/` directory from `public/`.
 
 ## Technologies
 
 - **React 19**: UI framework
 - **TypeScript 5.9**: Type safety
 - **Vite 7**: Build tool and dev server
-- **LibRetro API**: Emulator core interface
+- **SNES9x (2005 port)**: Emulator core from Emulatrix
+- **Emscripten**: WebAssembly compilation
 - **WebAudio API**: Low-latency audio with AudioWorklet
 - **Canvas API**: Hardware-accelerated rendering
 - **Gamepad API**: Controller support
 
 ## Performance
 
-- **Target FPS**: 60 (SNES native)
+- **Target FPS**: 60 (SNES native refresh rate)
 - **Frame Time**: ~16.67ms per frame
 - **Audio Latency**: <50ms
+- **Video Resolution**: 512x448 RGBA (upscaled from native 256x224)
 - **Memory Usage**: ~5-10 MB (including WASM core)
 
 ## Troubleshooting
 
-### Core Won't Load
+### Build Fails
 
-**Problem**: "Failed to load core" error
+**Problem**: TypeScript or Vite build errors
 
 **Solutions**:
 
-1. Check that core files exist in `public/cores/`
-2. Verify file paths in browser dev tools (Network tab)
-3. Check for CORS issues (cores must be served from same origin)
-4. Try clearing browser cache
-5. Ensure both `.js` and `.wasm` files are present
-
-### Demo Mode Stuck
-
-**Problem**: Always shows "DEMO MODE" even with cores installed
-
-**Solution**: Check core path configuration in `EmulatorScreen.tsx` matches actual file location
+1. Make sure you ran `npm install` first
+2. Delete `node_modules` and `package-lock.json`, then run `npm install` again
+3. Check that you have Node.js 20.x or later: `node --version`
+4. Try clearing the Vite cache: `rm -rf node_modules/.vite`
 
 ### ROM Won't Load
 
@@ -353,9 +169,20 @@ Or configure your hosting to serve the `cores/` directory from `public/`.
 **Solutions**:
 
 1. Verify ROM is valid SNES format (.smc or .sfc)
-2. Check ROM file size (should be 512KB to 6MB typically)
+2. Check ROM file size (typically 512KB to 6MB)
 3. Ensure ROM is not corrupted
-4. Try a different ROM file
+4. Check browser console for specific error messages
+
+### No Video Output
+
+**Problem**: Black screen after loading ROM
+
+**Solutions**:
+
+1. Check browser console for JavaScript errors
+2. Verify WASM core loaded successfully (check Network tab)
+3. Try a different ROM file
+4. Refresh the page and try again
 
 ### Audio Issues
 
@@ -363,9 +190,10 @@ Or configure your hosting to serve the `cores/` directory from `public/`.
 
 **Solutions**:
 
-1. Check browser autoplay policies (may require user interaction)
-2. Verify WebAudio API support in browser
-3. Try adjusting audio buffer size in `AudioSystem.ts`
+1. Click "Play" button first (browser autoplay policy requires user interaction)
+2. Verify WebAudio API support in your browser
+3. Check browser volume and mute settings
+4. Try a different browser (Chrome/Edge recommended)
 
 ### Low FPS
 
@@ -374,9 +202,67 @@ Or configure your hosting to serve the `cores/` directory from `public/`.
 **Solutions**:
 
 1. Check CPU usage in browser task manager
-2. Try the faster `snes9x` core instead of `bsnes`
-3. Close other browser tabs
-4. Reduce canvas size if on low-end device
+2. Close other browser tabs to free up resources
+3. Try disabling browser extensions
+4. Use a desktop browser instead of mobile
+
+## Development
+
+### Prerequisites
+
+- **Node.js** 20.x or later
+- **npm** (comes with Node.js)
+
+### Project Scripts
+
+```bash
+# Development
+npm run dev          # Start dev server at localhost:5173
+npm run build        # TypeScript compile + production build
+npm run preview      # Preview production build locally
+
+# Testing
+npm test             # Run all tests with Vitest
+npm test:coverage    # Generate test coverage report
+npm test:ui          # Interactive test UI
+
+# Code Quality
+npm run lint         # Run ESLint on all TypeScript/React files
+```
+
+### Adding New Features
+
+1. Define interfaces first (see `IEmulatorCore.ts` as example)
+2. Write tests before implementation
+3. Follow existing code patterns and naming conventions
+4. Update documentation as needed
+5. Run tests and linter before committing
+
+## Deployment
+
+The emulator is a static web application that can be deployed to any hosting service:
+
+```bash
+# Build for production
+npm run build
+
+# Deploy the dist/ folder to your hosting service
+```
+
+The `dist/` folder contains everything needed to run the emulator. The WASM cores are automatically included during the build process.
+
+**Hosting Options**:
+- GitHub Pages
+- Vercel
+- Netlify
+- Cloudflare Pages
+- Any static file server
+
+## Documentation
+
+- **[EMULATOR_INTEGRATION.md](docs/EMULATOR_INTEGRATION.md)** - Technical details of the SNES9x WASM integration
+- **[PROJECT_ROADMAP.md](docs/PROJECT_ROADMAP.md)** - Development phases and future features
+- **[QUICK_START_GUIDE.md](docs/QUICK_START_GUIDE.md)** - Developer quick start guide
 
 ## Legal & License
 
@@ -384,37 +270,33 @@ Or configure your hosting to serve the `cores/` directory from `public/`.
 
 This project is licensed under the MIT License - see LICENSE file for details.
 
-### ROMs and Cores
+### ROMs
 
-- **ROMs**: SNES ROM files are copyrighted. Only use ROMs you legally own.
-- **Cores**: LibRetro cores have their own licenses:
-  - snes9x: Non-commercial license
-  - bsnes: GPLv3
-  - mednafen: GPLv2
+SNES ROM files are copyrighted material. **Only use ROM files you legally own.** This emulator is for educational and preservation purposes. Always respect copyright laws.
 
-Ensure you comply with all applicable licenses when using or distributing this software.
+### Third-Party Licenses
+
+- **SNES9x**: Non-commercial license (see snes9x documentation)
+- **Emulatrix cores**: Various licenses (see Emulatrix project)
+- **React, Vite, and other dependencies**: See individual package licenses
 
 ## Contributing
 
 Contributions are welcome! Please:
 
 1. Fork the repository
-2. Create a feature branch
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes with tests
-4. Submit a pull request
-
-## Resources
-
-- [LibRetro Documentation](https://docs.libretro.com/)
-- [LibRetro Core Buildbot](https://buildbot.libretro.com/stable/latest/emscripten/)
-- [SNES Development Manual](https://problemkaputt.de/fullsnes.htm)
-- [Emscripten Documentation](https://emscripten.org/docs/)
+4. Commit your changes (`git commit -m 'Add amazing feature'`)
+5. Push to your branch (`git push origin feature/amazing-feature`)
+6. Open a Pull Request
 
 ## Acknowledgments
 
-- LibRetro team for the standardized emulator API
-- snes9x developers for the excellent SNES emulator
-- Emscripten team for WebAssembly compilation tools
+- **SNES9x team** for the excellent SNES emulator
+- **Emulatrix project** for providing pre-compiled WASM cores
+- **Emscripten team** for making WebAssembly development possible
+- **React and Vite teams** for modern web development tools
 
 ---
 

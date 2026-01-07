@@ -11,11 +11,54 @@ type ModuleLoader = () => Promise<Snes9xWasmModule>;
 const DEFAULT_SAMPLE_RATE = 48_000;
 
 /**
- * Skeleton implementation of a SNES9x WASM-backed emulator core.
+ * Default module loader for snes9x_2005 core.
+ * Loads the WASM module from /cores/snes9x_2005.js
+ */
+async function createDefaultModuleLoader(coreUrl: string): Promise<Snes9xWasmModule> {
+  return new Promise((resolve, reject) => {
+    // Set up Module configuration before loading the script
+    // The Emscripten script will use this global Module object
+    const moduleConfig: Partial<Snes9xWasmModule> = {
+      locateFile: (path: string) => {
+        // Ensure WASM file is loaded from the correct location
+        if (path.endsWith('.wasm')) {
+          return coreUrl.replace('.js', '.wasm');
+        }
+        return path;
+      },
+      onRuntimeInitialized: function(this: Snes9xWasmModule) {
+        // Module is ready - resolve with it
+        // Note: Don't delete the global Module yet, as it's still being used
+        // The Emscripten runtime references Module internally
+        resolve(this);
+      },
+      onAbort: (error: string) => {
+        reject(new Error(`WASM module aborted: ${error}`));
+      },
+    };
+
+    // Set the global Module object that the Emscripten script will use
+    (window as any).Module = moduleConfig;
+
+    // Create script element to load the Emscripten module
+    const script = document.createElement('script');
+    script.src = coreUrl;
+    script.async = true;
+
+    script.onerror = () => {
+      delete (window as any).Module;
+      reject(new Error(`Failed to load WASM module from ${coreUrl}`));
+    };
+
+    document.head.appendChild(script);
+  });
+}
+
+/**
+ * Implementation of a SNES9x WASM-backed emulator core.
  *
- * This class wires the {@link IEmulatorCore} interface to a provided
- * {@link Snes9xWasmModule}. The implementation intentionally keeps logic
- * minimal while establishing the structure for future, fuller features.
+ * This class wires the {@link IEmulatorCore} interface to the
+ * {@link Snes9xWasmModule} loaded from the snes9x_2005 core files.
  */
 export class Snes9xWasmCore implements IEmulatorCore {
   private module: Snes9xWasmModule | null = null;
@@ -30,25 +73,17 @@ export class Snes9xWasmCore implements IEmulatorCore {
   /**
    * Create a new Snes9xWasmCore instance.
    *
-   * @param coreName - Optional core name (kept for compatibility)
-   * @param coreUrl - Optional core URL (reserved for future loaders)
-   * @param moduleLoader - Optional loader returning a {@link Snes9xWasmModule}
+   * @param _coreName - Optional core name (unused, kept for compatibility)
+   * @param coreUrl - Optional core URL (default: '/cores/snes9x_2005.js')
+   * @param moduleLoader - Optional custom loader returning a {@link Snes9xWasmModule}
    */
   constructor(
-    coreName: string = 'snes9x_2005',
+    _coreName: string = 'snes9x_2005',
     coreUrl?: string,
     moduleLoader?: ModuleLoader
   ) {
-    this.moduleLoader =
-      moduleLoader ??
-      (() =>
-        Promise.reject(
-          new Error(
-            `Snes9xWasmCore loader not configured for ${coreName}${
-              coreUrl ? ` (${coreUrl})` : ''
-            }`
-          )
-        ));
+    const url = coreUrl || '/cores/snes9x_2005.js';
+    this.moduleLoader = moduleLoader ?? (() => createDefaultModuleLoader(url));
 
     this.sampleRate = DEFAULT_SAMPLE_RATE;
     this.videoBuffer = new ImageData(
@@ -102,9 +137,18 @@ export class Snes9xWasmCore implements IEmulatorCore {
       throw new Error('ROM not loaded');
     }
 
+    // Set input state before running the frame
     // Only player 1 input is supported by the current WASM build.
-    this.module._setJoypadInput(this.inputStates[0]);
+    const inputState = this.inputStates[0];
+    if (inputState !== 0) {
+      console.log(`[Snes9xWasmCore] runFrame: Setting input state 0x${inputState.toString(16)}`);
+    }
+    this.module._setJoypadInput(inputState);
+    
+    // Run one frame of emulation
     this.module._mainLoop();
+    
+    // Capture video and audio immediately after emulation
     this.captureVideo();
     this.captureAudio();
   }
@@ -133,11 +177,13 @@ export class Snes9xWasmCore implements IEmulatorCore {
     if (port < 0 || port > 3) {
       throw new Error('Port must be between 0 and 3');
     }
+    // Store input state - it will be applied in runFrame() before each frame
+    const oldState = this.inputStates[port];
     this.inputStates[port] = buttons;
-
-    // Current WASM core supports player 1 only; update immediately when available.
-    if (port === 0 && this.module) {
-      this.module._setJoypadInput(buttons);
+    
+    // Debug logging for input changes
+    if (buttons !== oldState && buttons !== 0) {
+      console.log(`[Snes9xWasmCore] setInput: Port ${port} changed from 0x${oldState.toString(16)} to 0x${buttons.toString(16)}`);
     }
   }
 
@@ -237,18 +283,34 @@ export class Snes9xWasmCore implements IEmulatorCore {
 
   private captureAudio(): void {
     if (!this.module) {
+      console.warn('[Snes9xWasmCore] captureAudio: module not initialized');
       return;
     }
     const audioPtr = this.module._getSoundBuffer();
     if (!audioPtr) {
+      console.warn('[Snes9xWasmCore] captureAudio: _getSoundBuffer returned null pointer');
       return;
     }
+    
     const audioBytes = wasmMemoryHelpers.copyFromWasm(
       this.module,
       audioPtr,
       AudioBufferConstants.TOTAL_SIZE
     );
     const samples = new Float32Array(audioBytes.buffer);
+    
+    // Debug: Check if we have actual audio data
+    let nonZeroCount = 0;
+    let maxAmplitude = 0;
+    for (let i = 0; i < Math.min(100, samples.length); i++) {
+      if (samples[i] !== 0) nonZeroCount++;
+      maxAmplitude = Math.max(maxAmplitude, Math.abs(samples[i]));
+    }
+    
+    if (nonZeroCount > 0) {
+      console.log(`[Snes9xWasmCore] captureAudio: Got ${samples.length} samples, ${nonZeroCount}/100 non-zero, max amplitude: ${maxAmplitude.toFixed(4)}`);
+    }
+    
     this.audioBuffer.set(samples);
   }
 }

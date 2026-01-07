@@ -36,41 +36,39 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
   const [core] = useState(() => new SnesCore());
   const [audioSystem] = useState(() => new AudioSystem());
   const [isInitialized, setIsInitialized] = useState(false);
+  const [audioInitialized, setAudioInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveStates, setSaveStates] = useState<Map<number, Uint8Array>>(new Map());
   const [loadedRomName, setLoadedRomName] = useState<string | null>(null);
   const [isLoadingRom, setIsLoadingRom] = useState(false);
-  const [isMockMode, setIsMockMode] = useState(false);
 
   const { canvasRef, isRunning, fps, toggle } = useEmulator({
     core,
     targetFPS: 60,
+    onFrameRendered: (frameTime) => {
+      // Log performance metrics periodically (every 60 frames = 1 second at 60fps)
+      if (Math.random() < 0.017) {
+        console.log(`[Performance] Frame time: ${frameTime.toFixed(2)}ms, Target: ${(1000/60).toFixed(2)}ms, FPS: ${fps}`);
+      }
+    },
   });
 
   const { buttons, isGamepadConnected } = useInput({
     port: 0,
-    enabled: isInitialized,
+    enabled: isInitialized && loadedRomName !== null,
     onInputChange: (buttons) => {
-      if (isInitialized) {
+      if (isInitialized && loadedRomName !== null) {
         core.setInput(0, buttons);
       }
     },
   });
 
-  // Initialize emulator
+  // Initialize emulator (but NOT audio - needs user interaction)
   useEffect(() => {
     const init = async () => {
       try {
         await core.initialize();
         setIsInitialized(true);
-        setIsMockMode(core.isInMockMode());
-        
-        // Try to initialize audio system (non-blocking)
-        try {
-          await audioSystem.initialize(core);
-        } catch (audioErr) {
-          console.warn('Audio system initialization failed, continuing without audio:', audioErr);
-        }
         
         // If ROM data is provided, load it
         if (romData) {
@@ -90,6 +88,22 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
     };
   }, [core, audioSystem, romData]);
 
+  // Initialize audio on user interaction (browser requirement)
+  const initializeAudio = async () => {
+    if (!audioInitialized) {
+      try {
+        console.log('[EmulatorScreen] Initializing audio system...');
+        await audioSystem.initialize(core);
+        setAudioInitialized(true);
+        console.log('[EmulatorScreen] Audio system initialized successfully');
+      } catch (audioErr) {
+        console.error('[EmulatorScreen] Audio system initialization failed:', audioErr);
+      }
+    } else {
+      console.log('[EmulatorScreen] Audio already initialized');
+    }
+  };
+
   // Sync audio playback with emulator state
   useEffect(() => {
     if (isRunning) {
@@ -103,18 +117,24 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Initialize audio on first user interaction
+    console.log('[EmulatorScreen] Load ROM button clicked, initializing audio...');
+    await initializeAudio();
+
     setIsLoadingRom(true);
     setError(null);
 
     try {
+      console.log(`[EmulatorScreen] Loading ROM file: ${file.name} (${file.size} bytes)`);
       const arrayBuffer = await file.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
       await core.loadROM(uint8Array);
       setLoadedRomName(file.name);
       setError(null);
+      console.log('[EmulatorScreen] ROM loaded successfully');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load ROM');
-      console.error('ROM load error:', err);
+      console.error('[EmulatorScreen] ROM load error:', err);
       setLoadedRomName(null);
     } finally {
       setIsLoadingRom(false);
@@ -165,22 +185,6 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
         </div>
       )}
 
-      {isMockMode && (
-        <div className="demo-notice">
-          <strong>⚠️ Demo Mode:</strong> LibRetro core not loaded. Showing demo pattern with input indicators.
-          <br />
-          To use real emulation, download a core from{' '}
-          <a 
-            href="https://buildbot.libretro.com/stable/latest/emscripten/" 
-            target="_blank" 
-            rel="noopener noreferrer"
-          >
-            LibRetro buildbot
-          </a>
-          {' '}and host it locally.
-        </div>
-      )}
-
       {loadedRomName && (
         <div className="rom-status">
           <strong>📄 ROM Loaded:</strong> {loadedRomName}
@@ -204,10 +208,10 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
 
       <div className="emulator-controls">
         <div className="control-group">
-          <button onClick={toggle} disabled={!isInitialized}>
+          <button onClick={async () => { await initializeAudio(); toggle(); }} disabled={!isInitialized}>
             {isRunning ? '⏸️ Pause' : '▶️ Play'}
           </button>
-          <button onClick={handleReset} disabled={!isInitialized}>
+          <button onClick={async () => { await initializeAudio(); handleReset(); }} disabled={!isInitialized}>
             🔄 Reset
           </button>
           <label className="file-upload-button">
@@ -261,14 +265,14 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
           <h3>Keyboard Controls</h3>
           <div className="controls-grid">
             <div><strong>D-Pad:</strong> Arrow Keys or WASD</div>
-            <div><strong>A Button:</strong> X</div>
-            <div><strong>B Button:</strong> Z</div>
-            <div><strong>X Button:</strong> V</div>
-            <div><strong>Y Button:</strong> C</div>
-            <div><strong>L Button:</strong> Q</div>
-            <div><strong>R Button:</strong> E</div>
-            <div><strong>Start:</strong> Enter</div>
-            <div><strong>Select:</strong> Shift</div>
+            <div><strong>SNES B:</strong> Z key</div>
+            <div><strong>SNES A:</strong> X key</div>
+            <div><strong>SNES Y:</strong> C key</div>
+            <div><strong>SNES X:</strong> V key</div>
+            <div><strong>L Shoulder:</strong> Q key</div>
+            <div><strong>R Shoulder:</strong> E key</div>
+            <div><strong>Start:</strong> Enter key</div>
+            <div><strong>Select:</strong> Shift key</div>
           </div>
         </div>
 

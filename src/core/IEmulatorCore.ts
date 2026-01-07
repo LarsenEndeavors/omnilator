@@ -64,19 +64,21 @@ export interface IEmulatorCore {
 }
 
 /**
- * SNES button bitmasks for input
+ * SNES button bitmasks for input (LibRetro standard ordering)
+ * These bit positions match the LibRetro/RetroArch SNES controller mapping
+ * used by the snes9x_2005 WASM core.
  */
 export const SnesButton = {
-  B: 1 << 0,
-  Y: 1 << 1,
-  SELECT: 1 << 2,
-  START: 1 << 3,
-  UP: 1 << 4,
-  DOWN: 1 << 5,
-  LEFT: 1 << 6,
-  RIGHT: 1 << 7,
-  A: 1 << 8,
-  X: 1 << 9,
-  L: 1 << 10,
-  R: 1 << 11,
+  B: 1 << 0,       // Bit 0: B button (bottom face button)
+  Y: 1 << 1,       // Bit 1: Y button (left face button)
+  SELECT: 1 << 2,  // Bit 2: SELECT button
+  START: 1 << 3,   // Bit 3: START button
+  UP: 1 << 4,      // Bit 4: D-pad UP
+  DOWN: 1 << 5,    // Bit 5: D-pad DOWN
+  LEFT: 1 << 6,    // Bit 6: D-pad LEFT
+  RIGHT: 1 << 7,   // Bit 7: D-pad RIGHT
+  A: 1 << 8,       // Bit 8: A button (right face button)
+  X: 1 << 9,       // Bit 9: X button (top face button)
+  L: 1 << 10,      // Bit 10: L shoulder button
+  R: 1 << 11,      // Bit 11: R shoulder button
 } as const;
