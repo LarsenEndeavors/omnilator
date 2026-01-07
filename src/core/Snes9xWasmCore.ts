@@ -38,6 +38,7 @@ async function createDefaultModuleLoader(coreUrl: string): Promise<Snes9xWasmMod
     };
 
     // Set the global Module object that the Emscripten script will use
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).Module = moduleConfig;
 
     // Create script element to load the Emscripten module
@@ -46,6 +47,7 @@ async function createDefaultModuleLoader(coreUrl: string): Promise<Snes9xWasmMod
     script.async = true;
 
     script.onerror = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       delete (window as any).Module;
       reject(new Error(`Failed to load WASM module from ${coreUrl}`));
     };
@@ -73,12 +75,10 @@ export class Snes9xWasmCore implements IEmulatorCore {
   /**
    * Create a new Snes9xWasmCore instance.
    *
-   * @param _coreName - Optional core name (unused, kept for compatibility)
    * @param coreUrl - Optional core URL (default: '/cores/snes9x_2005.js')
    * @param moduleLoader - Optional custom loader returning a {@link Snes9xWasmModule}
    */
   constructor(
-    _coreName: string = 'snes9x_2005',
     coreUrl?: string,
     moduleLoader?: ModuleLoader
   ) {

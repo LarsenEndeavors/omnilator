@@ -43,16 +43,13 @@ describe('SnesCore', () => {
 
   beforeEach(() => {
     // Create core with mock module loader
-    core = new SnesCore('snes9x_2005', undefined);
+    core = new SnesCore(undefined);
   });
 
   describe('initialization', () => {
     it('should initialize successfully with WASM core', async () => {
       // Mock the module loader
-      const mockCore = new SnesCore(
-        'snes9x_2005',
-        '/cores/snes9x_2005.js',
-        async () => createMockModule()
+      const mockCore = new SnesCore('/cores/snes9x_2005.js', async () => createMockModule()
       );
       await expect(mockCore.initialize()).resolves.toBeUndefined();
     });
@@ -61,10 +58,7 @@ describe('SnesCore', () => {
   describe('ROM loading', () => {
     beforeEach(async () => {
       // Use mock module loader
-      core = new SnesCore(
-        'snes9x_2005',
-        '/cores/snes9x_2005.js',
-        async () => createMockModule()
+      core = new SnesCore('/cores/snes9x_2005.js', async () => createMockModule()
       );
       await core.initialize();
     });
@@ -85,10 +79,7 @@ describe('SnesCore', () => {
 
   describe('frame execution', () => {
     beforeEach(async () => {
-      core = new SnesCore(
-        'snes9x_2005',
-        '/cores/snes9x_2005.js',
-        async () => createMockModule()
+      core = new SnesCore('/cores/snes9x_2005.js', async () => createMockModule()
       );
       await core.initialize();
     });
@@ -110,10 +101,7 @@ describe('SnesCore', () => {
 
   describe('video output', () => {
     beforeEach(async () => {
-      core = new SnesCore(
-        'snes9x_2005',
-        '/cores/snes9x_2005.js',
-        async () => createMockModule()
+      core = new SnesCore('/cores/snes9x_2005.js', async () => createMockModule()
       );
       await core.initialize();
     });
@@ -133,10 +121,7 @@ describe('SnesCore', () => {
 
   describe('audio output', () => {
     beforeEach(async () => {
-      core = new SnesCore(
-        'snes9x_2005',
-        '/cores/snes9x_2005.js',
-        async () => createMockModule()
+      core = new SnesCore('/cores/snes9x_2005.js', async () => createMockModule()
       );
       await core.initialize();
     });
@@ -154,10 +139,7 @@ describe('SnesCore', () => {
 
   describe('input handling', () => {
     beforeEach(async () => {
-      core = new SnesCore(
-        'snes9x_2005',
-        '/cores/snes9x_2005.js',
-        async () => createMockModule()
+      core = new SnesCore('/cores/snes9x_2005.js', async () => createMockModule()
       );
       await core.initialize();
     });
@@ -182,10 +164,7 @@ describe('SnesCore', () => {
 
   describe('save states', () => {
     beforeEach(async () => {
-      core = new SnesCore(
-        'snes9x_2005',
-        '/cores/snes9x_2005.js',
-        async () => createMockModule()
+      core = new SnesCore('/cores/snes9x_2005.js', async () => createMockModule()
       );
       await core.initialize();
       const romData = new Uint8Array(512 * 1024);
@@ -210,10 +189,7 @@ describe('SnesCore', () => {
 
   describe('reset', () => {
     beforeEach(async () => {
-      core = new SnesCore(
-        'snes9x_2005',
-        '/cores/snes9x_2005.js',
-        async () => createMockModule()
+      core = new SnesCore('/cores/snes9x_2005.js', async () => createMockModule()
       );
       await core.initialize();
       const romData = new Uint8Array(512 * 1024);
@@ -232,10 +208,7 @@ describe('SnesCore', () => {
 
   describe('cleanup', () => {
     beforeEach(async () => {
-      core = new SnesCore(
-        'snes9x_2005',
-        '/cores/snes9x_2005.js',
-        async () => createMockModule()
+      core = new SnesCore('/cores/snes9x_2005.js', async () => createMockModule()
       );
       await core.initialize();
     });
@@ -252,10 +225,7 @@ describe('SnesCore', () => {
 
   describe('core info', () => {
     beforeEach(async () => {
-      core = new SnesCore(
-        'snes9x_2005',
-        '/cores/snes9x_2005.js',
-        async () => createMockModule()
+      core = new SnesCore('/cores/snes9x_2005.js', async () => createMockModule()
       );
     });
 
@@ -274,17 +244,14 @@ describe('SnesCore', () => {
     });
 
     it('should accept custom core URL', () => {
-      const customCore = new SnesCore('snes9x', '/custom/path/core.js');
+      const customCore = new SnesCore('/custom/path/core.js');
       expect(customCore).toBeDefined();
     });
   });
 
   describe('full workflow', () => {
     it('should handle complete emulation cycle', async () => {
-      const workflowCore = new SnesCore(
-        'snes9x_2005',
-        '/cores/snes9x_2005.js',
-        async () => createMockModule()
+      const workflowCore = new SnesCore('/cores/snes9x_2005.js', async () => createMockModule()
       );
 
       // Initialize

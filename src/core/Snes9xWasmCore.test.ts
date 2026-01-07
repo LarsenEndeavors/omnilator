@@ -59,7 +59,7 @@ describe('Snes9xWasmCore', () => {
 
   beforeEach(() => {
     module = createMockModule();
-    core = new Snes9xWasmCore('snes9x_2005', undefined, async () => module);
+    core = new Snes9xWasmCore(undefined, async () => module);
   });
 
   it('initializes and loads ROM using provided module', async () => {

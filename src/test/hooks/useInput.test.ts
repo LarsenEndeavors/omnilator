@@ -374,7 +374,7 @@ describe('useInput - Keyboard Mapping', () => {
 
       const { result } = renderHook(() => useInput());
 
-      readmeMapping.forEach(([key, expectedButton, description]) => {
+      readmeMapping.forEach(([key, expectedButton]) => {
         act(() => {
           // Clear previous state
           window.dispatchEvent(new KeyboardEvent('keyup', { key }));

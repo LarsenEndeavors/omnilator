@@ -55,7 +55,6 @@ export class SnesCore implements IEmulatorCore {
   /**
    * Create a new SNES emulator core
    * 
-   * @param coreName - Name of the SNES9x core to use (default: 'snes9x_2005')
    * @param coreUrl - Optional custom URL for the core (default: '/cores/snes9x_2005.js')
    * @param moduleLoader - Optional custom module loader for testing
    * 
@@ -65,16 +64,15 @@ export class SnesCore implements IEmulatorCore {
    * const core = new SnesCore();
    * 
    * // Use custom core URL
-   * const core = new SnesCore('snes9x_2005', '/custom/path/snes9x_2005.js');
+   * const core = new SnesCore('/custom/path/snes9x_2005.js');
    * ```
    */
   constructor(
-    coreName: string = 'snes9x_2005',
     coreUrl?: string,
     moduleLoader?: () => Promise<Snes9xWasmModule>
   ) {
     // Use local SNES9x WASM core from /public/cores/
-    this.core = new Snes9xWasmCore(coreName, coreUrl, moduleLoader);
+    this.core = new Snes9xWasmCore(coreUrl, moduleLoader);
   }
 
   /**

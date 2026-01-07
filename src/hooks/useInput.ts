@@ -265,17 +265,18 @@ export function useInput({
   enabled = true,
   onInputChange,
 }: UseInputOptions = {}): UseInputResult {
-  const [buttons, setButtons] = useState(0);
-  const [isGamepadConnected, setIsGamepadConnected] = useState(false);
   const [keyboardButtons, setKeyboardButtons] = useState(0);
   const [gamepadButtons, setGamepadButtons] = useState(0);
+  const [isGamepadConnected, setIsGamepadConnected] = useState(false);
 
-  // Combine keyboard and gamepad inputs
+  // Derive combined button state instead of storing it separately
+  // This avoids setState in effect and ensures buttons is always in sync
+  const buttons = keyboardButtons | gamepadButtons;
+
+  // Notify parent component when combined state changes
   useEffect(() => {
-    const combined = keyboardButtons | gamepadButtons;
-    setButtons(combined);
-    onInputChange?.(combined);
-  }, [keyboardButtons, gamepadButtons, onInputChange]);
+    onInputChange?.(buttons);
+  }, [buttons, onInputChange]);
 
   // Keyboard event handlers
   useEffect(() => {
