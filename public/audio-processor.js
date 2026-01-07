@@ -31,9 +31,9 @@ class EmulatorAudioProcessor extends AudioWorkletProcessor {
     const outputR = output[1];
 
     // Request more samples if buffer is running low and no request is pending
-    // Keep buffer with at least 2048 samples (1024 stereo pairs = ~21ms at 48kHz)
-    // This provides a larger buffer to smooth out choppy audio
-    if (this.sampleBuffer.length < 2048 && !this.requestPending) {
+    // Keep buffer with at least 4096 samples (2048 stereo pairs = ~42ms at 48kHz)
+    // This larger buffer provides more headroom to prevent choppy audio
+    if (this.sampleBuffer.length < 4096 && !this.requestPending) {
       this.port.postMessage({ type: 'request-samples' });
       this.requestPending = true;
     }
