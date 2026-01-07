@@ -25,9 +25,12 @@ export class AudioSystem {
 
     try {
       this.core = core;
-      console.log('[AudioSystem] Creating AudioContext with 48kHz sample rate');
-      this.audioContext = new AudioContext({ sampleRate: 48000 });
-      console.log(`[AudioSystem] AudioContext created, state: ${this.audioContext.state}`);
+      console.log('[AudioSystem] Creating AudioContext with 48kHz sample rate and reduced latency');
+      this.audioContext = new AudioContext({ 
+        sampleRate: 48000,
+        latencyHint: 'interactive' // Optimize for low latency
+      });
+      console.log(`[AudioSystem] AudioContext created, state: ${this.audioContext.state}, baseLatency: ${this.audioContext.baseLatency.toFixed(3)}s`);
 
       // Load and register the audio worklet processor
       try {
@@ -52,7 +55,7 @@ export class AudioSystem {
         this.audioWorkletNode.port.onmessage = this.handleAudioRequest.bind(this);
 
         this.isInitialized = true;
-        console.log('[AudioSystem] AudioWorklet initialized successfully');
+        console.log('[AudioSystem] AudioWorklet initialized successfully with interactive latency');
       } catch (workletError) {
         console.warn('[AudioSystem] AudioWorklet not available, falling back to ScriptProcessor', workletError);
         this.initializeFallback();

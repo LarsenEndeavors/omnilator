@@ -45,6 +45,12 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
   const { canvasRef, isRunning, fps, toggle } = useEmulator({
     core,
     targetFPS: 60,
+    onFrameRendered: (frameTime) => {
+      // Log performance metrics periodically (every 60 frames = 1 second at 60fps)
+      if (Math.random() < 0.017) {
+        console.log(`[Performance] Frame time: ${frameTime.toFixed(2)}ms, Target: ${(1000/60).toFixed(2)}ms, FPS: ${fps}`);
+      }
+    },
   });
 
   const { buttons, isGamepadConnected } = useInput({
@@ -259,14 +265,14 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
           <h3>Keyboard Controls</h3>
           <div className="controls-grid">
             <div><strong>D-Pad:</strong> Arrow Keys or WASD</div>
-            <div><strong>A Button:</strong> X</div>
-            <div><strong>B Button:</strong> Z</div>
-            <div><strong>X Button:</strong> V</div>
-            <div><strong>Y Button:</strong> C</div>
-            <div><strong>L Button:</strong> Q</div>
-            <div><strong>R Button:</strong> E</div>
-            <div><strong>Start:</strong> Enter</div>
-            <div><strong>Select:</strong> Shift</div>
+            <div><strong>SNES B:</strong> Z key</div>
+            <div><strong>SNES A:</strong> X key</div>
+            <div><strong>SNES Y:</strong> C key</div>
+            <div><strong>SNES X:</strong> V key</div>
+            <div><strong>L Shoulder:</strong> Q key</div>
+            <div><strong>R Shoulder:</strong> E key</div>
+            <div><strong>Start:</strong> Enter key</div>
+            <div><strong>Select:</strong> Shift key</div>
           </div>
         </div>
 
