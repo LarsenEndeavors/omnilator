@@ -61,7 +61,12 @@ export function useEmulator({
       // Update FPS counter
       fpsCounterRef.current.frames++;
       if (currentTime - fpsCounterRef.current.lastTime >= 1000) {
-        setFps(fpsCounterRef.current.frames);
+        const newFps = fpsCounterRef.current.frames;
+        setFps(newFps);
+        
+        // DIAGNOSTIC: Log FPS
+        console.log(`[useEmulator] FPS: ${newFps} (target: 60)`);
+        
         fpsCounterRef.current.frames = 0;
         fpsCounterRef.current.lastTime = currentTime;
       }

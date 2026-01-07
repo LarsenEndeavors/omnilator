@@ -121,9 +121,15 @@ export function useInput({
     const combined = keyboardButtons | gamepadButtons;
     setButtons(combined);
     
+    // DIAGNOSTIC: Always log when combined state changes
+    if (combined !== previousButtonsRef.current) {
+      console.log(`[useInput] Combined button state changed: 0x${combined.toString(16)} (keyboard: 0x${keyboardButtons.toString(16)}, gamepad: 0x${gamepadButtons.toString(16)})`);
+    }
+    
     // Only call onInputChange if the combined state actually changed
     // AND if we have a callback
     if (combined !== previousButtonsRef.current && onInputChange) {
+      console.log(`[useInput] ➡️ Calling onInputChange with: 0x${combined.toString(16)}`);
       onInputChange(combined);
       previousButtonsRef.current = combined;
     }
@@ -164,10 +170,16 @@ export function useInput({
     const handleKeyDown = (event: KeyboardEvent) => {
       const button = KEYBOARD_MAP[event.key];
       
+      // DIAGNOSTIC: Log every key press
+      console.log(`[useInput] Key pressed: "${event.key}" (code: ${event.code})`);
+      
       // Only handle mapped keys
       if (button === undefined) {
+        console.log(`[useInput] ❌ Key "${event.key}" is NOT MAPPED - ignoring`);
         return; // Ignore unmapped keys
       }
+      
+      console.log(`[useInput] ✓ Key "${event.key}" maps to button 0x${button.toString(16)} (${button})`);
       
       // Prevent default browser behavior for game controls
       event.preventDefault();
@@ -177,6 +189,7 @@ export function useInput({
       
       // Recalculate button mask
       const newButtons = calculateButtonMask();
+      console.log(`[useInput] New button state: 0x${newButtons.toString(16)} (binary: ${newButtons.toString(2).padStart(12, '0')})`);
       setKeyboardButtons(newButtons);
     };
 

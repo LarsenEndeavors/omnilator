@@ -57,8 +57,12 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
     port: 0,
     enabled: isInitialized && loadedRomName !== null,
     onInputChange: (buttons) => {
+      console.log(`[EmulatorScreen] onInputChange called with: 0x${buttons.toString(16)}, initialized: ${isInitialized}, ROM loaded: ${loadedRomName !== null}`);
       if (isInitialized && loadedRomName !== null) {
+        console.log(`[EmulatorScreen] ➡️ Calling core.setInput(0, 0x${buttons.toString(16)})`);
         core.setInput(0, buttons);
+      } else {
+        console.log(`[EmulatorScreen] ❌ NOT calling core.setInput - emulator not ready`);
       }
     },
   });

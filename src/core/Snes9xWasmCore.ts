@@ -140,6 +140,12 @@ export class Snes9xWasmCore implements IEmulatorCore {
     // Set input state before running the frame
     // Only player 1 input is supported by the current WASM build.
     const inputState = this.inputStates[0];
+    
+    // DIAGNOSTIC: Log every frame's input state (throttle to reduce spam)
+    if (inputState !== 0 || Math.random() < 0.01) { // Log if input active, or 1% of frames
+      console.log(`[Snes9xWasmCore] runFrame: About to call WASM _setJoypadInput(0x${inputState.toString(16)})`);
+    }
+    
     this.module._setJoypadInput(inputState);
     
     // Run one frame of emulation
@@ -174,8 +180,12 @@ export class Snes9xWasmCore implements IEmulatorCore {
     if (port < 0 || port > 3) {
       throw new Error('Port must be between 0 and 3');
     }
-    // Store input state - it will be applied in runFrame() before each frame
+    
+    const oldState = this.inputStates[port];
     this.inputStates[port] = buttons;
+    
+    // DIAGNOSTIC: Always log input changes
+    console.log(`[Snes9xWasmCore] setInput(port ${port}, 0x${buttons.toString(16)}) - stored (prev: 0x${oldState.toString(16)})`);
   }
 
   /**
