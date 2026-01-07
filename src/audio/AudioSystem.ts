@@ -25,16 +25,21 @@ export class AudioSystem {
 
     try {
       this.core = core;
-      console.log('[AudioSystem] Creating AudioContext with 48kHz sample rate and reduced latency');
+      console.log('[AudioSystem] Creating AudioContext with 48kHz sample rate and interactive latency');
       this.audioContext = new AudioContext({ 
         sampleRate: 48000,
         latencyHint: 'interactive' // Optimize for low latency
       });
-      console.log(`[AudioSystem] AudioContext created, state: ${this.audioContext.state}, baseLatency: ${this.audioContext.baseLatency.toFixed(3)}s`);
+      console.log(
+        `[AudioSystem] AudioContext created successfully\n` +
+        `  - State: ${this.audioContext.state}\n` +
+        `  - Sample Rate: ${this.audioContext.sampleRate} Hz\n` +
+        `  - Base Latency: ${(this.audioContext.baseLatency * 1000).toFixed(2)}ms`
+      );
 
       // Load and register the audio worklet processor
       try {
-        console.log('[AudioSystem] Attempting to load AudioWorklet from /audio-processor.js');
+        console.log('[AudioSystem] Loading AudioWorklet from /audio-processor.js');
         await this.audioContext.audioWorklet.addModule('/audio-processor.js');
         
         // Create the audio worklet node
@@ -51,11 +56,11 @@ export class AudioSystem {
         // Connect to destination
         this.audioWorkletNode.connect(this.audioContext.destination);
 
-        // Set up message handling for audio data
+        // Set up message handling for audio data requests
         this.audioWorkletNode.port.onmessage = this.handleAudioRequest.bind(this);
 
         this.isInitialized = true;
-        console.log('[AudioSystem] AudioWorklet initialized successfully with interactive latency');
+        console.log('[AudioSystem] ✅ AudioWorklet initialized successfully with interactive latency');
       } catch (workletError) {
         console.warn('[AudioSystem] AudioWorklet not available, falling back to ScriptProcessor', workletError);
         this.initializeFallback();
@@ -73,7 +78,7 @@ export class AudioSystem {
     if (!this.audioContext) return;
 
     console.log('[AudioSystem] Initializing ScriptProcessor fallback with 4096 buffer size');
-    const bufferSize = 4096; // Match the WASM buffer size
+    const bufferSize = 4096;
     const processor = this.audioContext.createScriptProcessor(bufferSize, 0, 2);
 
     processor.onaudioprocess = (event) => {
@@ -82,15 +87,6 @@ export class AudioSystem {
       const outputL = event.outputBuffer.getChannelData(0);
       const outputR = event.outputBuffer.getChannelData(1);
       const samples = this.core.getAudioSamples();
-
-      // Debug: Check audio data periodically (every 60 frames = 1 second at 60fps)
-      if (Math.random() < 0.017) { // ~1/60 chance
-        let nonZeroCount = 0;
-        for (let i = 0; i < Math.min(10, samples.length); i++) {
-          if (samples[i] !== 0) nonZeroCount++;
-        }
-        console.log(`[AudioSystem] ScriptProcessor processing ${samples.length} samples (${nonZeroCount}/10 non-zero)`);
-      }
 
       // De-interleave stereo samples
       for (let i = 0; i < bufferSize; i++) {
@@ -101,7 +97,7 @@ export class AudioSystem {
 
     processor.connect(this.audioContext.destination);
     this.isInitialized = true;
-    console.log('[AudioSystem] ScriptProcessor fallback initialized');
+    console.log('[AudioSystem] ✅ ScriptProcessor fallback initialized');
   }
 
   /**
@@ -111,14 +107,7 @@ export class AudioSystem {
     if (event.data.type === 'request-samples' && this.core) {
       const samples = this.core.getAudioSamples();
       
-      // Debug: Check if we're getting non-zero audio samples
-      let nonZeroCount = 0;
-      for (let i = 0; i < Math.min(10, samples.length); i++) {
-        if (samples[i] !== 0) nonZeroCount++;
-      }
-      
-      console.log(`[AudioSystem] Worklet requested samples, sending ${samples.length} samples (${nonZeroCount}/10 non-zero)`);
-      
+      // Send samples to worklet
       this.audioWorkletNode?.port.postMessage({
         type: 'samples',
         samples: samples,

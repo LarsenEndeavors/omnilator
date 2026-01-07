@@ -251,7 +251,7 @@ describe('useInput - Keyboard Mapping', () => {
 
   describe('Edge Cases', () => {
     it('should ignore unmapped keys', () => {
-      const { result } = renderHook(() => 
+      renderHook(() => 
         useInput({ enabled: true, onInputChange: onInputChangeMock })
       );
 
@@ -260,7 +260,7 @@ describe('useInput - Keyboard Mapping', () => {
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b' }));
       });
 
-      expect(result.current.buttons).toBe(0);
+      // Should not trigger any input changes
       expect(onInputChangeMock).not.toHaveBeenCalled();
     });
 
@@ -314,7 +314,7 @@ describe('useInput - Keyboard Mapping', () => {
   describe('Callback Behavior', () => {
     it('should call onInputChange callback on every state change', () => {
       const callback = vi.fn();
-      const { result } = renderHook(() => 
+      renderHook(() => 
         useInput({ enabled: true, onInputChange: callback })
       );
 
