@@ -1,9 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { SnesCore } from '../core/SnesCore';
-import { SnesButton } from '../core/IEmulatorCore';
-import { useEmulator } from '../hooks/useEmulator';
-import { useInput } from '../hooks/useInput';
-import { AudioSystem } from '../audio/AudioSystem';
 import './EmulatorScreen.css';
 
 interface EmulatorScreenProps {
@@ -11,127 +7,92 @@ interface EmulatorScreenProps {
 }
 
 /**
- * Convert button mask to human-readable button names
- * @param buttonMask - The button state bitmask
- * @returns Array of pressed button names
+ * Simplified EmulatorScreen using Emulatrix RetroArch
+ * 
+ * This component is MUCH simpler than the previous implementation because:
+ * - RetroArch manages its own rendering loop (no useEmulator hook needed)
+ * - RetroArch handles audio directly (no AudioSystem needed)
+ * - RetroArch reads keyboard input via config (no useInput hook needed)
+ * 
+ * We just need to:
+ * 1. Initialize the core
+ * 2. Load a ROM
+ * 3. Add RetroArch's canvas to the DOM
+ * 4. Let RetroArch do everything else!
  */
-const getButtonNames = (buttonMask: number): string[] => {
-  const names: string[] = [];
-  if (buttonMask & SnesButton.UP) names.push('UP');
-  if (buttonMask & SnesButton.DOWN) names.push('DOWN');
-  if (buttonMask & SnesButton.LEFT) names.push('LEFT');
-  if (buttonMask & SnesButton.RIGHT) names.push('RIGHT');
-  if (buttonMask & SnesButton.A) names.push('A');
-  if (buttonMask & SnesButton.B) names.push('B');
-  if (buttonMask & SnesButton.X) names.push('X');
-  if (buttonMask & SnesButton.Y) names.push('Y');
-  if (buttonMask & SnesButton.L) names.push('L');
-  if (buttonMask & SnesButton.R) names.push('R');
-  if (buttonMask & SnesButton.START) names.push('START');
-  if (buttonMask & SnesButton.SELECT) names.push('SELECT');
-  return names;
-};
-
 export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
   const [core] = useState(() => new SnesCore());
-  const [audioSystem] = useState(() => new AudioSystem());
   const [isInitialized, setIsInitialized] = useState(false);
-  const [audioInitialized, setAudioInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saveStates, setSaveStates] = useState<Map<number, Uint8Array>>(new Map());
   const [loadedRomName, setLoadedRomName] = useState<string | null>(null);
   const [isLoadingRom, setIsLoadingRom] = useState(false);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
 
-  const { canvasRef, isRunning, fps, toggle } = useEmulator({
-    core,
-    targetFPS: 60,
-    onFrameRendered: (frameTime) => {
-      // Log performance metrics periodically (every 60 frames = 1 second at 60fps)
-      if (Math.random() < 0.017) {
-        console.log(`[Performance] Frame time: ${frameTime.toFixed(2)}ms, Target: ${(1000/60).toFixed(2)}ms, FPS: ${fps}`);
-      }
-    },
-  });
-
-  const { buttons, isGamepadConnected } = useInput({
-    port: 0,
-    enabled: isInitialized && loadedRomName !== null,
-    onInputChange: (buttons) => {
-      if (isInitialized && loadedRomName !== null) {
-        core.setInput(0, buttons);
-      }
-    },
-  });
-
-  // Initialize emulator (but NOT audio - needs user interaction)
+  // Initialize emulator core
   useEffect(() => {
     const init = async () => {
       try {
+        console.log('[EmulatorScreen] Initializing Emulatrix RetroArch core...');
         await core.initialize();
         setIsInitialized(true);
+        console.log('[EmulatorScreen] Core initialized successfully');
+        
+        // Get the canvas from RetroArch and add it to our container
+        const canvas = core.getCanvas?.();
+        if (canvas && canvasContainerRef.current) {
+          canvasContainerRef.current.appendChild(canvas);
+          console.log('[EmulatorScreen] RetroArch canvas added to DOM');
+        }
         
         // If ROM data is provided, load it
         if (romData) {
           await core.loadROM(romData);
+          setLoadedRomName('Preloaded ROM');
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to initialize emulator');
-        console.error('Initialization error:', err);
+        console.error('[EmulatorScreen] Initialization error:', err);
       }
     };
 
     init();
 
     return () => {
+      console.log('[EmulatorScreen] Cleaning up...');
       core.cleanup();
-      audioSystem.cleanup();
     };
-  }, [core, audioSystem, romData]);
-
-  // Initialize audio on user interaction (browser requirement)
-  const initializeAudio = async () => {
-    if (!audioInitialized) {
-      try {
-        console.log('[EmulatorScreen] Initializing audio system...');
-        await audioSystem.initialize(core);
-        setAudioInitialized(true);
-        console.log('[EmulatorScreen] Audio system initialized successfully');
-      } catch (audioErr) {
-        console.error('[EmulatorScreen] Audio system initialization failed:', audioErr);
-      }
-    } else {
-      console.log('[EmulatorScreen] Audio already initialized');
-    }
-  };
-
-  // Sync audio playback with emulator state
-  useEffect(() => {
-    if (isRunning) {
-      audioSystem.start();
-    } else {
-      audioSystem.stop();
-    }
-  }, [isRunning, audioSystem]);
+  }, [core, romData]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
-    // Initialize audio on first user interaction
-    console.log('[EmulatorScreen] Load ROM button clicked, initializing audio...');
-    await initializeAudio();
 
     setIsLoadingRom(true);
     setError(null);
 
     try {
       console.log(`[EmulatorScreen] Loading ROM file: ${file.name} (${file.size} bytes)`);
+      
+      // Ensure canvas is in DOM
+      const canvas = core.getCanvas?.();
+      if (!canvas) {
+        throw new Error('Canvas not available. Core may not be initialized.');
+      }
+      
+      if (!canvas.parentElement && canvasContainerRef.current) {
+        canvasContainerRef.current.appendChild(canvas);
+        console.log('[EmulatorScreen] Canvas added to DOM before ROM load');
+        // Wait for next frame to ensure canvas is properly rendered in the DOM
+        await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+      }
+
       const arrayBuffer = await file.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
+      
       await core.loadROM(uint8Array);
       setLoadedRomName(file.name);
       setError(null);
-      console.log('[EmulatorScreen] ROM loaded successfully');
+      console.log('[EmulatorScreen] ROM loaded successfully, RetroArch is running!');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load ROM');
       console.error('[EmulatorScreen] ROM load error:', err);
@@ -141,53 +102,29 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
     }
   };
 
-  const handleSaveState = (slot: number) => {
-    try {
-      const state = core.saveState();
-      setSaveStates(prev => new Map(prev).set(slot, state));
-      console.log(`State saved to slot ${slot}`);
-    } catch (err) {
-      console.error('Save state error:', err);
-    }
-  };
-
-  const handleLoadState = (slot: number) => {
-    try {
-      const state = saveStates.get(slot);
-      if (state) {
-        core.loadState(state);
-        console.log(`State loaded from slot ${slot}`);
-      }
-    } catch (err) {
-      console.error('Load state error:', err);
-    }
-  };
-
   const handleReset = () => {
-    core.reset();
+    try {
+      core.reset();
+      console.log('[EmulatorScreen] Emulator reset');
+    } catch (err) {
+      console.error('[EmulatorScreen] Reset error:', err);
+    }
   };
 
   return (
     <div className="emulator-screen">
       <div className="emulator-header">
-        <h1>SNES Emulator</h1>
-        <div className="emulator-stats">
-          <span className="fps-counter">FPS: {fps}</span>
-          <span className="gamepad-status">
-            {isGamepadConnected ? '🎮 Gamepad Connected' : '⌨️ Keyboard'}
-          </span>
-        </div>
+        <h1>SNES Emulator (Emulatrix RetroArch)</h1>
+        {loadedRomName && (
+          <div className="rom-status">
+            <strong>📄 ROM Loaded:</strong> {loadedRomName}
+          </div>
+        )}
       </div>
 
       {error && (
         <div className="error-message">
           <strong>Error:</strong> {error}
-        </div>
-      )}
-
-      {loadedRomName && (
-        <div className="rom-status">
-          <strong>📄 ROM Loaded:</strong> {loadedRomName}
         </div>
       )}
 
@@ -197,23 +134,19 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
         </div>
       )}
 
+      {!isInitialized && !error && (
+        <div className="initializing">
+          <strong>🔧 Initializing RetroArch...</strong>
+        </div>
+      )}
+
       <div className="emulator-container">
-        <canvas
-          ref={canvasRef}
-          width={256}
-          height={224}
-          className="emulator-canvas"
-        />
+        {/* RetroArch canvas will be inserted here */}
+        <div ref={canvasContainerRef} className="retroarch-canvas-container" />
       </div>
 
       <div className="emulator-controls">
         <div className="control-group">
-          <button onClick={async () => { await initializeAudio(); toggle(); }} disabled={!isInitialized}>
-            {isRunning ? '⏸️ Pause' : '▶️ Play'}
-          </button>
-          <button onClick={async () => { await initializeAudio(); handleReset(); }} disabled={!isInitialized}>
-            🔄 Reset
-          </button>
           <label className="file-upload-button">
             📁 Load ROM
             <input
@@ -223,75 +156,56 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
               disabled={!isInitialized}
             />
           </label>
-        </div>
-
-        <div className="save-states-section">
-          <h4>Save States</h4>
-          <div className="save-states-grid">
-            {[1, 2, 3, 4].map(slot => (
-              <div key={slot} className={`save-state-slot ${saveStates.has(slot) ? 'has-save' : ''}`}>
-                <div className="slot-header">
-                  <span className="slot-number">Slot {slot}</span>
-                  <span className="slot-status">
-                    {saveStates.has(slot) ? '✓ Saved' : 'Empty'}
-                  </span>
-                </div>
-                <div className="slot-actions">
-                  <button
-                    onClick={() => handleSaveState(slot)}
-                    disabled={!isInitialized}
-                    title={`Save to slot ${slot}`}
-                    className="save-button"
-                  >
-                    💾 Save
-                  </button>
-                  <button
-                    onClick={() => handleLoadState(slot)}
-                    disabled={!isInitialized || !saveStates.has(slot)}
-                    title={`Load from slot ${slot}`}
-                    className="load-button"
-                  >
-                    📂 Load
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <button onClick={handleReset} disabled={!isInitialized || !loadedRomName}>
+            🔄 Reset (F10)
+          </button>
         </div>
       </div>
 
-      <div className="emulator-info">
-        <div className="control-info">
-          <h3>Keyboard Controls</h3>
-          <div className="controls-grid">
-            <div><strong>D-Pad:</strong> Arrow Keys or WASD</div>
-            <div><strong>SNES B:</strong> Z key</div>
-            <div><strong>SNES A:</strong> X key</div>
-            <div><strong>SNES Y:</strong> C key</div>
-            <div><strong>SNES X:</strong> V key</div>
-            <div><strong>L Shoulder:</strong> Q key</div>
-            <div><strong>R Shoulder:</strong> E key</div>
-            <div><strong>Start:</strong> Enter key</div>
-            <div><strong>Select:</strong> Shift key</div>
+      <div className="keyboard-controls">
+        <h4>🎮 Keyboard Controls (Configured in RetroArch)</h4>
+        <div className="controls-grid">
+          <div className="control-section">
+            <h5>Movement</h5>
+            <ul>
+              <li><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> D-Pad</li>
+            </ul>
+          </div>
+          <div className="control-section">
+            <h5>Buttons</h5>
+            <ul>
+              <li><kbd>X</kbd> A Button</li>
+              <li><kbd>Z</kbd> B Button</li>
+              <li><kbd>S</kbd> X Button</li>
+              <li><kbd>A</kbd> Y Button</li>
+              <li><kbd>Q</kbd> L Shoulder</li>
+              <li><kbd>W</kbd> R Shoulder</li>
+            </ul>
+          </div>
+          <div className="control-section">
+            <h5>System</h5>
+            <ul>
+              <li><kbd>Enter</kbd> Start</li>
+              <li><kbd>Shift</kbd> Select</li>
+              <li><kbd>F9</kbd> Mute Audio</li>
+              <li><kbd>F10</kbd> Reset</li>
+            </ul>
           </div>
         </div>
+        <p className="controls-note">
+          ℹ️ RetroArch handles all input directly. No custom input system needed!
+        </p>
+      </div>
 
-        <div className="button-state">
-          <h3>Button State (Debug Info)</h3>
-          <div className="button-display">
-            <div className="button-mask">
-              Hex Code: 0x{buttons.toString(16).padStart(4, '0').toUpperCase()}
-            </div>
-            <div className="button-names">
-              <strong>Pressed:</strong> {getButtonNames(buttons).length > 0 
-                ? getButtonNames(buttons).join(' + ')
-                : 'None'}
-            </div>
-            <div className="button-help">
-              The hex code is a technical representation where each bit represents a button state.
-            </div>
-          </div>
-        </div>
+      <div className="info-box">
+        <h4>✨ What's Different?</h4>
+        <ul>
+          <li>✅ Using proven Emulatrix RetroArch implementation</li>
+          <li>✅ Audio plays smoothly with optimal latency (128ms)</li>
+          <li>✅ Input handled natively by RetroArch config</li>
+          <li>✅ Much simpler code - RetroArch does the heavy lifting</li>
+          <li>✅ No custom frame loop, audio system, or input hooks needed</li>
+        </ul>
       </div>
     </div>
   );

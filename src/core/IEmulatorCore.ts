@@ -61,6 +61,12 @@ export interface IEmulatorCore {
    * Clean up resources
    */
   cleanup(): void;
+
+  /**
+   * Get the canvas element (optional, for cores that manage their own rendering)
+   * @returns The canvas element or null if not applicable
+   */
+  getCanvas?(): HTMLCanvasElement | null;
 }
 
 /**
