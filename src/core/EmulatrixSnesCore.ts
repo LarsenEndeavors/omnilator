@@ -48,13 +48,17 @@ export class EmulatrixSnesCore implements IEmulatorCore {
       const existingCanvas = document.getElementById('canvas') as HTMLCanvasElement;
       if (existingCanvas) {
         this.canvasElement = existingCanvas;
-        console.log('[EmulatrixSnesCore] Found existing canvas');
+        // CRITICAL: Update Module.canvas to point to our canvas
+        window.Module.canvas = this.canvasElement;
+        console.log('[EmulatrixSnesCore] Found existing canvas and updated Module.canvas');
       } else {
         // Create canvas if it doesn't exist
         this.canvasElement = document.createElement('canvas');
         this.canvasElement.id = 'canvas';
         this.canvasElement.style.width = '100%';
         this.canvasElement.style.height = '100%';
+        // CRITICAL: Set Module.canvas to our new canvas
+        window.Module.canvas = this.canvasElement;
         console.log('[EmulatrixSnesCore] Created new canvas for existing module');
       }
       
@@ -111,6 +115,9 @@ export class EmulatrixSnesCore implements IEmulatorCore {
         setTimeout(() => {
           if (window.FS) {
             console.log('[EmulatrixSnesCore] Module already initialized');
+            // CRITICAL: Set Module.canvas to our canvas element
+            window.Module.canvas = this.canvasElement;
+            console.log('[EmulatrixSnesCore] Module.canvas set to our canvas element');
             this.isInitialized = true;
             resolve();
           } else {
@@ -148,9 +155,27 @@ export class EmulatrixSnesCore implements IEmulatorCore {
       throw new Error('BrowserFS not available. Module may not have loaded correctly.');
     }
 
+    if (!this.canvasElement) {
+      throw new Error('Canvas not available. Initialization may have failed.');
+    }
+
     console.log(`[EmulatrixSnesCore] Loading ROM (${romData.length} bytes)...`);
 
     try {
+      // CRITICAL: Canvas must be in DOM before calling Module.callMain()
+      // RetroArch tries to create WebGL context immediately
+      if (!this.canvasElement.parentElement) {
+        throw new Error('Canvas must be added to DOM before loading ROM. Call getCanvas() and append it first.');
+      }
+
+      // Clean up old ROM if it exists
+      try {
+        window.FS.unlink('/game.smc');
+        console.log('[EmulatrixSnesCore] Removed old ROM file');
+      } catch (e) {
+        // File doesn't exist, that's fine
+      }
+
       // Create the ROM file in the virtual filesystem
       // This is exactly how Emulatrix does it
       window.FS.createDataFile('/', 'game.smc', romData, true, false);
@@ -173,14 +198,52 @@ export class EmulatrixSnesCore implements IEmulatorCore {
         // Folder may already exist
       }
 
+      // Remove old config if it exists
+      try {
+        window.FS.unlink('/home/web_user/retroarch/userdata/retroarch.cfg');
+        console.log('[EmulatrixSnesCore] Removed old config file');
+      } catch (e) {
+        // File doesn't exist, that's fine
+      }
+
       // Generate RetroArch config file
       // These settings are copied from the working Emulatrix implementation
       const config = this.generateRetroArchConfig();
       window.FS.createDataFile('/home/web_user/retroarch/userdata', 'retroarch.cfg', config, true, true);
       console.log('[EmulatrixSnesCore] RetroArch config created');
 
-      // Wait a bit for the filesystem to settle
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Define checkControls stub (required by RetroArch)
+      // This function is called by RetroArch's main loop
+      if (!(window as any).checkControls) {
+        (window as any).checkControls = () => {
+          // No-op for now - RetroArch expects this function
+          // In the original Emulatrix, this handles mobile controls and parent notifications
+        };
+        console.log('[EmulatrixSnesCore] Defined checkControls stub');
+      }
+
+      // Wait for config file to be written and verified
+      let configReady = false;
+      let attempts = 0;
+      while (!configReady && attempts < 10) {
+        try {
+          const fileContent = window.FS.readFile('/home/web_user/retroarch/userdata/retroarch.cfg');
+          if (fileContent.length === config.length) {
+            configReady = true;
+            console.log('[EmulatrixSnesCore] Config file verified');
+          } else {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+          }
+        } catch (e) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          attempts++;
+        }
+      }
+
+      if (!configReady) {
+        console.warn('[EmulatrixSnesCore] Config file verification timed out, proceeding anyway');
+      }
 
       // Start RetroArch with the ROM
       // This is the key command that starts everything

@@ -72,6 +72,20 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
 
     try {
       console.log(`[EmulatorScreen] Loading ROM file: ${file.name} (${file.size} bytes)`);
+      
+      // Ensure canvas is in DOM
+      const canvas = core.getCanvas();
+      if (!canvas) {
+        throw new Error('Canvas not available. Core may not be initialized.');
+      }
+      
+      if (!canvas.parentElement && canvasContainerRef.current) {
+        canvasContainerRef.current.appendChild(canvas);
+        console.log('[EmulatorScreen] Canvas added to DOM before ROM load');
+        // Give canvas time to be properly attached
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
       const arrayBuffer = await file.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
       
