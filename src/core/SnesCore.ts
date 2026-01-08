@@ -1,29 +1,26 @@
 import type { IEmulatorCore } from './IEmulatorCore';
-import { Snes9xWasmCore } from './Snes9xWasmCore';
-import type { Snes9xWasmModule } from './types/Snes9xWasmModule';
+import { EmulatrixSnesCore } from './EmulatrixSnesCore';
 
 /**
- * SNES emulator core implementation using SNES9x WASM
+ * SNES emulator core implementation using Emulatrix RetroArch WASM
  * 
- * This class provides a SNES-specific wrapper around Snes9xWasmCore, making it easy to
- * instantiate a SNES emulator using the SNES9x WebAssembly module from Emulatrix.
+ * This class provides a SNES-specific wrapper around EmulatrixSnesCore, which uses
+ * the proven Emulatrix RetroArch implementation for reliable SNES emulation.
  * 
- * The SNES9x WASM core (snes9x_2005) provides:
- * - High performance SNES emulation
- * - Accurate cycle-level emulation
- * - Native SNES9x features and compatibility
- * - Video output at 512x448 resolution (RGBA8888)
- * - Audio output at 48kHz (stereo float32)
- * - Save state support
+ * The Emulatrix RetroArch core provides:
+ * - Full RetroArch emulator with BrowserFS
+ * - Automatic input handling via configuration
+ * - Automatic audio with optimal latency settings (audio_latency = 128)
+ * - Self-contained emulation loop (no manual frame stepping needed)
+ * - Proven stability and compatibility
  * 
- * Implementation:
+ * Key Differences from Previous Implementation:
  * 
- * This class delegates all work to Snes9xWasmCore, which handles:
- * - WASM module loading from /cores/snes9x_2005.js
- * - Memory management between JavaScript and WASM
- * - Video and audio buffer capture
- * - Input handling for player 1
- * - Save state serialization
+ * - Uses full RetroArch WASM build instead of minimal snes9x_2005
+ * - RetroArch manages its own rendering loop (runFrame is a no-op)
+ * - RetroArch handles audio directly (getAudioSamples returns empty)
+ * - RetroArch reads input via configuration (setInput is a no-op)
+ * - Much simpler integration - just load ROM and let RetroArch run
  * 
  * Usage:
  * ```typescript
@@ -31,163 +28,104 @@ import type { Snes9xWasmModule } from './types/Snes9xWasmModule';
  * await core.initialize();
  * await core.loadROM(romData);
  * 
- * // Run at 60 FPS
- * setInterval(async () => {
- *   await core.runFrame();
- *   const frame = core.getBuffer();
- *   const audio = core.getAudioSamples();
- *   // Render frame and play audio
- * }, 1000/60);
+ * // That's it! RetroArch runs autonomously
+ * // No manual frame loop needed
  * ```
  * 
  * Core Files:
  * 
- * The SNES9x WASM module files are located in /public/cores/:
- * - `snes9x_2005.js` - JavaScript glue code (Emscripten output)
- * - `snes9x_2005.wasm` - WebAssembly binary
+ * The Emulatrix RetroArch files are located in /public/cores/Emulatrix/:
+ * - `Emulatrix_SuperNintendo.js` - RetroArch glue code with BrowserFS (~503KB)
+ * - `Emulatrix_SuperNintendo.wasm` - RetroArch WebAssembly binary (~3.8MB)
  * 
- * These files are from the Emulatrix project and provide the actual
- * SNES emulation functionality.
+ * These files are the working implementation from the Emulatrix project.
  */
 export class SnesCore implements IEmulatorCore {
-  private core: Snes9xWasmCore;
+  private core: EmulatrixSnesCore;
 
   /**
-   * Create a new SNES emulator core
-   * 
-   * @param coreName - Name of the SNES9x core to use (default: 'snes9x_2005')
-   * @param coreUrl - Optional custom URL for the core (default: '/cores/snes9x_2005.js')
-   * @param moduleLoader - Optional custom module loader for testing
+   * Create a new SNES emulator core using Emulatrix RetroArch
    * 
    * @example
    * ```typescript
-   * // Use default local core
+   * // Create and initialize
    * const core = new SnesCore();
-   * 
-   * // Use custom core URL
-   * const core = new SnesCore('snes9x_2005', '/custom/path/snes9x_2005.js');
+   * await core.initialize();
    * ```
    */
-  constructor(
-    coreName: string = 'snes9x_2005',
-    coreUrl?: string,
-    moduleLoader?: () => Promise<Snes9xWasmModule>
-  ) {
-    // Use local SNES9x WASM core from /public/cores/
-    this.core = new Snes9xWasmCore(coreName, coreUrl, moduleLoader);
+  constructor() {
+    // Use Emulatrix RetroArch core - much simpler than custom wrapper
+    this.core = new EmulatrixSnesCore();
   }
 
   /**
    * Initialize the emulator core
    * 
-   * Loads the SNES9x WASM module and sets up the emulation environment.
+   * Loads the Emulatrix RetroArch WASM module and sets up the environment.
    * Must be called before any other operations.
    * 
    * @throws Error if WASM module fails to load
    */
   async initialize(): Promise<void> {
     await this.core.initialize();
-    console.log('SNES9x WASM core initialized successfully');
+    console.log('[SnesCore] Emulatrix RetroArch core initialized successfully');
   }
 
   /**
    * Load a ROM file into the emulator
    * 
-   * Supports .smc and .sfc ROM formats. The ROM data is copied into WASM memory
-   * and passed to the core's _startWithRom() function.
+   * Supports .smc and .sfc ROM formats. The ROM is loaded into RetroArch's
+   * virtual filesystem and the emulator is started automatically.
    * 
    * @param romData - The ROM file data as a Uint8Array
-   * @throws Error if ROM fails to load (invalid format, unsupported mapper, etc.)
+   * @throws Error if ROM fails to load
    */
   async loadROM(romData: Uint8Array): Promise<void> {
     await this.core.loadROM(romData);
   }
 
   /**
-   * Execute one frame of SNES emulation
+   * Execute one frame - NO-OP for RetroArch
    * 
-   * This runs approximately 16.67ms of emulated time (1/60th of a second).
-   * During execution, the core will:
-   * - Execute CPU instructions
-   * - Render one video frame
-   * - Generate audio samples
-   * - Read controller input
-   * 
-   * The frame and audio data can be retrieved after this call using
-   * getBuffer() and getAudioSamples().
-   * 
-   * @throws Error if emulator is not initialized or no ROM is loaded
+   * RetroArch manages its own internal rendering loop, so this method
+   * doesn't need to do anything. Kept for interface compatibility.
    */
   async runFrame(): Promise<void> {
     await this.core.runFrame();
   }
 
   /**
-   * Get the current video frame
+   * Get the current video frame - NOT USED with RetroArch
    * 
-   * Returns the most recently rendered frame as an ImageData object ready for
-   * drawing to a canvas. The resolution is 512x448 (maximum including overscan).
+   * RetroArch renders directly to its canvas element, so this returns
+   * an empty buffer. Kept for interface compatibility.
    * 
-   * The pixel format is RGBA8888 (4 bytes per pixel, 8 bits per channel).
-   * 
-   * @returns ImageData containing the current frame
+   * @returns Empty ImageData
    */
   getBuffer(): ImageData {
     return this.core.getBuffer();
   }
 
   /**
-   * Get audio samples from the last frame
+   * Get audio samples - NOT USED with RetroArch
    * 
-   * Returns the audio samples generated during the last runFrame() call.
-   * The samples are interleaved stereo float32 values in the range [-1, 1].
+   * RetroArch handles audio playback directly through WebAudio API,
+   * so this returns an empty array. Kept for interface compatibility.
    * 
-   * Format: [L0, R0, L1, R1, L2, R2, ...]
-   * Sample count: 4096 samples (2048 stereo frames)
-   * 
-   * @returns Float32Array containing interleaved stereo audio samples
+   * @returns Empty Float32Array
    */
   getAudioSamples(): Float32Array {
     return this.core.getAudioSamples();
   }
 
   /**
-   * Set controller input state
+   * Set controller input - NOT USED with RetroArch
    * 
-   * Updates the button state for player 1 (port 0). The SNES9x WASM core
-   * currently only supports single-player input.
+   * RetroArch reads keyboard input directly based on its configuration file,
+   * so this method doesn't need to do anything. Kept for interface compatibility.
    * 
-   * The button bitmask uses the SnesButton constants from IEmulatorCore:
-   * - Bit 0: B button
-   * - Bit 1: Y button
-   * - Bit 2: SELECT button
-   * - Bit 3: START button
-   * - Bit 4: UP on D-pad
-   * - Bit 5: DOWN on D-pad
-   * - Bit 6: LEFT on D-pad
-   * - Bit 7: RIGHT on D-pad
-   * - Bit 8: A button
-   * - Bit 9: X button
-   * - Bit 10: L button
-   * - Bit 11: R button
-   * 
-   * @param port - Controller port (0-3, but only 0 is supported)
-   * @param buttons - Button state bitmask
-   * @throws Error if port is invalid
-   * 
-   * @example
-   * ```typescript
-   * import { SnesButton } from './IEmulatorCore';
-   * 
-   * // Press A and B buttons
-   * core.setInput(0, SnesButton.A | SnesButton.B);
-   * 
-   * // Press START
-   * core.setInput(0, SnesButton.START);
-   * 
-   * // Release all buttons
-   * core.setInput(0, 0);
-   * ```
+   * @param port - Controller port (ignored)
+   * @param buttons - Button state bitmask (ignored)
    */
   setInput(port: number, buttons: number): void {
     this.core.setInput(port, buttons);
@@ -196,17 +134,10 @@ export class SnesCore implements IEmulatorCore {
   /**
    * Save the current emulator state
    * 
-   * Creates a complete snapshot of the emulator's state, including:
-   * - CPU state (registers, program counter, flags)
-   * - Memory (Work RAM, Video RAM, Audio RAM)
-   * - PPU state (scanline, sprites, backgrounds)
-   * - APU state (sound channels, DSP registers)
-   * - Cartridge state (SRAM, special chips)
+   * NOTE: Save states not yet fully integrated with RetroArch.
+   * Users can use RetroArch's built-in hotkeys for save/load.
    * 
-   * Save states are typically 150-300 KB depending on the game.
-   * 
-   * @returns Uint8Array containing the serialized state
-   * @throws Error if save states are not supported or emulator is not initialized
+   * @returns Empty Uint8Array
    */
   saveState(): Uint8Array {
     return this.core.saveState();
@@ -215,12 +146,10 @@ export class SnesCore implements IEmulatorCore {
   /**
    * Load a previously saved state
    * 
-   * Restores the emulator to exactly the state when saveState() was called.
+   * NOTE: Save states not yet fully integrated with RetroArch.
+   * Users can use RetroArch's built-in hotkeys for save/load.
    * 
-   * ⚠️ Warning: The state must have been created with the same ROM.
-   * 
-   * @param state - Save state data from saveState()
-   * @throws Error if state is invalid or incompatible
+   * @param state - Save state data (ignored)
    */
   loadState(state: Uint8Array): void {
     this.core.loadState(state);
@@ -229,7 +158,7 @@ export class SnesCore implements IEmulatorCore {
   /**
    * Reset the emulator
    * 
-   * Resets the emulator state. The ROM remains loaded after reset.
+   * Triggers RetroArch's reset hotkey (F10 by default).
    */
   reset(): void {
     this.core.reset();
@@ -238,21 +167,20 @@ export class SnesCore implements IEmulatorCore {
   /**
    * Clean up resources
    * 
-   * Shuts down the emulator and frees all resources. After calling this,
-   * the instance cannot be used anymore.
+   * Shuts down RetroArch and frees all resources.
    */
   cleanup(): void {
     this.core.cleanup();
   }
 
   /**
-   * Get information about the core
+   * Get the canvas element that RetroArch renders to
    * 
-   * Returns metadata about the loaded core.
+   * This should be added to the DOM for display.
    * 
-   * @returns Object with core name and version
+   * @returns The canvas element or null if not initialized
    */
-  getCoreInfo(): { name: string; version: string } {
-    return this.core.getCoreInfo();
+  getCanvas(): HTMLCanvasElement | null {
+    return this.core.getCanvas();
   }
 }
