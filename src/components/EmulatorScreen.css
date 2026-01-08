@@ -111,6 +111,8 @@
   padding: 1rem;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   margin-bottom: 1.5rem;
+  width: 100%;
+  max-width: 800px;
 }
 
 .emulator-canvas {
@@ -127,18 +129,19 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  min-width: 768px;
-  min-height: 672px;
+  width: 768px;
+  height: 672px;
+  background: #000;
 }
 
 .retroarch-canvas-container canvas {
   display: block;
+  width: 768px !important;
+  height: 672px !important;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   background: #000;
   border-radius: 0.25rem;
-  max-width: 100%;
-  height: auto;
 }
 
 .emulator-controls {

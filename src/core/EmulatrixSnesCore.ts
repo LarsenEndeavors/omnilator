@@ -55,8 +55,9 @@ export class EmulatrixSnesCore implements IEmulatorCore {
         // Create canvas if it doesn't exist
         this.canvasElement = document.createElement('canvas');
         this.canvasElement.id = 'canvas';
-        this.canvasElement.style.width = '100%';
-        this.canvasElement.style.height = '100%';
+        // Set canvas dimensions to match SNES resolution (scaled 3x: 256x224 -> 768x672)
+        this.canvasElement.width = 768;
+        this.canvasElement.height = 672;
         // CRITICAL: Set Module.canvas to our new canvas
         window.Module.canvas = this.canvasElement;
         console.log('[EmulatrixSnesCore] Created new canvas for existing module');
@@ -72,8 +73,9 @@ export class EmulatrixSnesCore implements IEmulatorCore {
       // Create canvas element first
       this.canvasElement = document.createElement('canvas');
       this.canvasElement.id = 'canvas';
-      this.canvasElement.style.width = '100%';
-      this.canvasElement.style.height = '100%';
+      // Set canvas dimensions to match SNES resolution (scaled 3x: 256x224 -> 768x672)
+      this.canvasElement.width = 768;
+      this.canvasElement.height = 672;
 
       // Set up Module configuration before loading the script
       // This is based on the Emulatrix pattern
@@ -368,10 +370,20 @@ export class EmulatrixSnesCore implements IEmulatorCore {
 
     try {
       const container = this.canvasElement.parentElement;
-      if (container && window.Module && window.Module.setCanvasSize) {
-        const width = container.clientWidth || 512;
-        const height = container.clientHeight || 448;
-        window.Module.setCanvasSize(width, height, true);
+      if (container) {
+        // Set canvas to fill its container (768x672 for SNES)
+        const width = 768;
+        const height = 672;
+        
+        // Update canvas internal resolution
+        this.canvasElement.width = width;
+        this.canvasElement.height = height;
+        
+        // Update RetroArch's canvas size if available
+        if (window.Module && window.Module.setCanvasSize) {
+          window.Module.setCanvasSize(width, height, true);
+        }
+        
         console.log(`[EmulatrixSnesCore] Canvas resized to ${width}x${height}`);
       }
     } catch (error) {
