@@ -40,9 +40,37 @@ export class EmulatrixSnesCore implements IEmulatorCore {
       return;
     }
 
+    // Check if Module already exists (e.g., from previous initialization)
+    if (window.Module && window.FS) {
+      console.log('[EmulatrixSnesCore] Reusing existing RetroArch module');
+      
+      // Try to get the existing canvas
+      const existingCanvas = document.getElementById('canvas') as HTMLCanvasElement;
+      if (existingCanvas) {
+        this.canvasElement = existingCanvas;
+        console.log('[EmulatrixSnesCore] Found existing canvas');
+      } else {
+        // Create canvas if it doesn't exist
+        this.canvasElement = document.createElement('canvas');
+        this.canvasElement.id = 'canvas';
+        this.canvasElement.style.width = '100%';
+        this.canvasElement.style.height = '100%';
+        console.log('[EmulatrixSnesCore] Created new canvas for existing module');
+      }
+      
+      this.isInitialized = true;
+      return;
+    }
+
     console.log('[EmulatrixSnesCore] Initializing RetroArch WASM core...');
 
     return new Promise((resolve, reject) => {
+      // Create canvas element first
+      this.canvasElement = document.createElement('canvas');
+      this.canvasElement.id = 'canvas';
+      this.canvasElement.style.width = '100%';
+      this.canvasElement.style.height = '100%';
+
       // Set up Module configuration before loading the script
       // This is based on the Emulatrix pattern
       window.Module = {
@@ -54,14 +82,7 @@ export class EmulatrixSnesCore implements IEmulatorCore {
         printErr: (text: string) => {
           console.error('[RetroArch Error] ' + text);
         },
-        canvas: (() => {
-          // Create canvas element for RetroArch to render to
-          this.canvasElement = document.createElement('canvas');
-          this.canvasElement.id = 'canvas';
-          this.canvasElement.style.width = '100%';
-          this.canvasElement.style.height = '100%';
-          return this.canvasElement;
-        })(),
+        canvas: this.canvasElement,
         setStatus: (text: string) => {
           console.log('[RetroArch Status] ' + text);
         },
@@ -82,6 +103,22 @@ export class EmulatrixSnesCore implements IEmulatorCore {
           return path;
         }
       };
+
+      // Check if script already loaded
+      if (document.querySelector('script[src*="Emulatrix_SuperNintendo.js"]')) {
+        console.log('[EmulatrixSnesCore] Script already loaded, waiting for initialization...');
+        // Set a timeout in case initialization already happened
+        setTimeout(() => {
+          if (window.FS) {
+            console.log('[EmulatrixSnesCore] Module already initialized');
+            this.isInitialized = true;
+            resolve();
+          } else {
+            reject(new Error('Module loaded but FS not available'));
+          }
+        }, 1000);
+        return;
+      }
 
       // Load the Emulatrix SuperNintendo JavaScript module
       const script = document.createElement('script');
