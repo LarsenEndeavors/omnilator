@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { SnesCore } from '../core/SnesCore';
+import { useFullscreen } from '../hooks/useFullscreen';
 import './EmulatorScreen.css';
 
 interface EmulatorScreenProps {
@@ -27,6 +28,16 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
   const [loadedRomName, setLoadedRomName] = useState<string | null>(null);
   const [isLoadingRom, setIsLoadingRom] = useState(false);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
+
+  // Fullscreen hook
+  const { isFullscreen, toggleFullscreen, isSupported: isFullscreenSupported } = useFullscreen({
+    onEnter: () => console.log('[EmulatorScreen] Entered fullscreen mode'),
+    onExit: () => console.log('[EmulatorScreen] Exited fullscreen mode'),
+    onError: (err) => {
+      console.error('[EmulatorScreen] Fullscreen error:', err);
+      setError(`Fullscreen error: ${err.message}`);
+    },
+  });
 
   // Initialize emulator core
   useEffect(() => {
@@ -62,6 +73,24 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
       core.cleanup();
     };
   }, [core, romData]);
+
+  // Keyboard shortcut for fullscreen (F key)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Toggle fullscreen on F key (not F11 which is browser default)
+      if (event.key === 'f' || event.key === 'F') {
+        // Only handle if not typing in an input field
+        const target = event.target as HTMLElement;
+        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') {
+          event.preventDefault();
+          toggleFullscreen();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [toggleFullscreen]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -159,6 +188,15 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
           <button onClick={handleReset} disabled={!isInitialized || !loadedRomName}>
             🔄 Reset (F10)
           </button>
+          {isFullscreenSupported && (
+            <button 
+              onClick={toggleFullscreen} 
+              disabled={!isInitialized}
+              title={isFullscreen ? 'Exit Fullscreen (ESC or F)' : 'Enter Fullscreen (F)'}
+            >
+              {isFullscreen ? '🗗 Exit Fullscreen' : '🗖 Fullscreen'}
+            </button>
+          )}
         </div>
       </div>
 
