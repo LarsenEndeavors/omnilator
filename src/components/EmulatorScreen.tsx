@@ -38,7 +38,7 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
         console.log('[EmulatorScreen] Core initialized successfully');
         
         // Get the canvas from RetroArch and add it to our container
-        const canvas = core.getCanvas();
+        const canvas = core.getCanvas?.();
         if (canvas && canvasContainerRef.current) {
           canvasContainerRef.current.appendChild(canvas);
           console.log('[EmulatorScreen] RetroArch canvas added to DOM');
@@ -74,7 +74,7 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
       console.log(`[EmulatorScreen] Loading ROM file: ${file.name} (${file.size} bytes)`);
       
       // Ensure canvas is in DOM
-      const canvas = core.getCanvas();
+      const canvas = core.getCanvas?.();
       if (!canvas) {
         throw new Error('Canvas not available. Core may not be initialized.');
       }
@@ -82,8 +82,8 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
       if (!canvas.parentElement && canvasContainerRef.current) {
         canvasContainerRef.current.appendChild(canvas);
         console.log('[EmulatorScreen] Canvas added to DOM before ROM load');
-        // Give canvas time to be properly attached
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Wait for next frame to ensure canvas is properly rendered in the DOM
+        await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
       }
 
       const arrayBuffer = await file.arrayBuffer();

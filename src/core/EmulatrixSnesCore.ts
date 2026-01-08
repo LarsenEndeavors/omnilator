@@ -1,10 +1,40 @@
 import type { IEmulatorCore } from './IEmulatorCore';
 
+// Minimal typings for the Emscripten Module and BrowserFS FS used by this core
+interface EmulatrixEmscriptenModule {
+  canvas?: HTMLCanvasElement;
+  exit?: () => void;
+  callMain?: (args: string[]) => void;
+  setCanvasSize?: (width: number, height: number, noUpdates?: boolean) => void;
+  preRun?: Array<() => void>;
+  postRun?: Array<() => void>;
+  print?: (text: string) => void;
+  printErr?: (text: string) => void;
+  setStatus?: (text: string) => void;
+  totalDependencies?: number;
+  monitorRunDependencies?: (left: number) => void;
+  onRuntimeInitialized?: () => void;
+  locateFile?: (path: string) => string;
+}
+
+interface EmulatrixBrowserFS {
+  createDataFile(
+    parent: string,
+    name: string,
+    data: Uint8Array | string,
+    canRead: boolean,
+    canWrite: boolean
+  ): void;
+  createFolder(parent: string, name: string, canRead: boolean, canWrite: boolean): void;
+  unlink(path: string): void;
+  readFile(path: string): Uint8Array;
+}
+
 // Declare global types for Emscripten Module and BrowserFS
 declare global {
   interface Window {
-    Module: any;
-    FS: any;
+    Module?: EmulatrixEmscriptenModule;
+    FS?: EmulatrixBrowserFS;
   }
 }
 
@@ -23,6 +53,21 @@ declare global {
  * - RetroArch reads keyboard input via config (no custom input hooks needed)
  */
 export class EmulatrixSnesCore implements IEmulatorCore {
+  // Canvas dimensions - SNES native resolution (256x224) scaled 3x for better pixel clarity
+  private static readonly CANVAS_WIDTH = 768;
+  private static readonly CANVAS_HEIGHT = 672;
+  
+  // Maximum allowed ROM size (8MB)
+  private static readonly MAX_ROM_SIZE = 8 * 1024 * 1024;
+  
+  // Configuration verification settings
+  private static readonly CONFIG_VERIFICATION_MAX_ATTEMPTS = 5;
+  private static readonly CONFIG_VERIFICATION_INITIAL_DELAY_MS = 50;
+  
+  // Module initialization settings  
+  private static readonly MODULE_INIT_POLL_INTERVAL_MS = 50;
+  private static readonly MODULE_INIT_MAX_WAIT_MS = 2000;
+
   private isInitialized = false;
   private canvasElement: HTMLCanvasElement | null = null;
 
@@ -55,9 +100,9 @@ export class EmulatrixSnesCore implements IEmulatorCore {
         // Create canvas if it doesn't exist
         this.canvasElement = document.createElement('canvas');
         this.canvasElement.id = 'canvas';
-        // Set canvas dimensions to match SNES resolution (scaled 3x: 256x224 -> 768x672)
-        this.canvasElement.width = 768;
-        this.canvasElement.height = 672;
+        // Set canvas dimensions to match SNES resolution
+        this.canvasElement.width = EmulatrixSnesCore.CANVAS_WIDTH;
+        this.canvasElement.height = EmulatrixSnesCore.CANVAS_HEIGHT;
         // CRITICAL: Set Module.canvas to our new canvas
         window.Module.canvas = this.canvasElement;
         console.log('[EmulatrixSnesCore] Created new canvas for existing module');
@@ -73,9 +118,9 @@ export class EmulatrixSnesCore implements IEmulatorCore {
       // Create canvas element first
       this.canvasElement = document.createElement('canvas');
       this.canvasElement.id = 'canvas';
-      // Set canvas dimensions to match SNES resolution (scaled 3x: 256x224 -> 768x672)
-      this.canvasElement.width = 768;
-      this.canvasElement.height = 672;
+      // Set canvas dimensions to match SNES resolution
+      this.canvasElement.width = EmulatrixSnesCore.CANVAS_WIDTH;
+      this.canvasElement.height = EmulatrixSnesCore.CANVAS_HEIGHT;
 
       // Set up Module configuration before loading the script
       // This is based on the Emulatrix pattern
@@ -112,20 +157,43 @@ export class EmulatrixSnesCore implements IEmulatorCore {
 
       // Check if script already loaded
       if (document.querySelector('script[src*="Emulatrix_SuperNintendo.js"]')) {
-        console.log('[EmulatrixSnesCore] Script already loaded, waiting for initialization...');
-        // Set a timeout in case initialization already happened
-        setTimeout(() => {
-          if (window.FS) {
-            console.log('[EmulatrixSnesCore] Module already initialized');
-            // CRITICAL: Set Module.canvas to our canvas element
+        console.log('[EmulatrixSnesCore] Script already loaded, checking initialization state...');
+
+        // If FS is already available, we can resolve immediately without waiting
+        if (window.FS) {
+          console.log('[EmulatrixSnesCore] Module already initialized');
+          // CRITICAL: Set Module.canvas to our canvas element
+          if (window.Module && this.canvasElement) {
             window.Module.canvas = this.canvasElement;
+          }
+          console.log('[EmulatrixSnesCore] Module.canvas set to our canvas element');
+          this.isInitialized = true;
+          resolve();
+          return;
+        }
+
+        // Otherwise, poll for FS becoming available with a bounded timeout
+        const startTime = performance.now();
+
+        const intervalId = window.setInterval(() => {
+          if (window.FS) {
+            window.clearInterval(intervalId);
+            console.log('[EmulatrixSnesCore] Module initialized after script was loaded');
+            // CRITICAL: Set Module.canvas to our canvas element
+            if (window.Module && this.canvasElement) {
+              window.Module.canvas = this.canvasElement;
+            }
             console.log('[EmulatrixSnesCore] Module.canvas set to our canvas element');
             this.isInitialized = true;
             resolve();
-          } else {
-            reject(new Error('Module loaded but FS not available'));
+            return;
           }
-        }, 1000);
+
+          if (performance.now() - startTime >= EmulatrixSnesCore.MODULE_INIT_MAX_WAIT_MS) {
+            window.clearInterval(intervalId);
+            reject(new Error('Module script loaded but FS not available within timeout'));
+          }
+        }, EmulatrixSnesCore.MODULE_INIT_POLL_INTERVAL_MS);
         return;
       }
 
@@ -149,6 +217,7 @@ export class EmulatrixSnesCore implements IEmulatorCore {
    * This creates the virtual filesystem and starts RetroArch
    */
   async loadROM(romData: Uint8Array): Promise<void> {
+    // Validate initialization state
     if (!this.isInitialized) {
       throw new Error('Core not initialized. Call initialize() first.');
     }
@@ -159,6 +228,17 @@ export class EmulatrixSnesCore implements IEmulatorCore {
 
     if (!this.canvasElement) {
       throw new Error('Canvas not available. Initialization may have failed.');
+    }
+
+    // Validate ROM data
+    if (!romData || romData.length === 0) {
+      throw new Error('ROM data is empty. Please provide a valid ROM file.');
+    }
+
+    if (romData.length > EmulatrixSnesCore.MAX_ROM_SIZE) {
+      throw new Error(
+        `ROM file too large (${romData.length} bytes). Maximum size is ${EmulatrixSnesCore.MAX_ROM_SIZE} bytes (8MB).`
+      );
     }
 
     console.log(`[EmulatrixSnesCore] Loading ROM (${romData.length} bytes)...`);
@@ -224,44 +304,64 @@ export class EmulatrixSnesCore implements IEmulatorCore {
         console.log('[EmulatrixSnesCore] Defined checkControls stub');
       }
 
-      // Wait for config file to be written and verified
-      let configReady = false;
-      let attempts = 0;
-      while (!configReady && attempts < 10) {
-        try {
-          const fileContent = window.FS.readFile('/home/web_user/retroarch/userdata/retroarch.cfg');
-          if (fileContent.length === config.length) {
-            configReady = true;
-            console.log('[EmulatrixSnesCore] Config file verified');
-          } else {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
+      // Wait for config file to be written and verified using bounded retries
+      const configPath = '/home/web_user/retroarch/userdata/retroarch.cfg';
+      const verifyConfigFile = async (): Promise<void> => {
+        let delay = EmulatrixSnesCore.CONFIG_VERIFICATION_INITIAL_DELAY_MS;
+        
+        for (let attempt = 1; attempt <= EmulatrixSnesCore.CONFIG_VERIFICATION_MAX_ATTEMPTS; attempt++) {
+          try {
+            const fileContent = window.FS!.readFile(configPath);
+            if (fileContent && fileContent.length === config.length) {
+              console.log('[EmulatrixSnesCore] Config file verified');
+              return;
+            }
+          } catch (error) {
+            // Ignore and retry with backoff below
           }
-        } catch (e) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-          attempts++;
-        }
-      }
 
-      if (!configReady) {
-        console.warn('[EmulatrixSnesCore] Config file verification timed out, proceeding anyway');
+          if (attempt === EmulatrixSnesCore.CONFIG_VERIFICATION_MAX_ATTEMPTS) {
+            throw new Error(
+              `Config file verification failed after ${EmulatrixSnesCore.CONFIG_VERIFICATION_MAX_ATTEMPTS} attempts`
+            );
+          }
+
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2; // Exponential backoff
+        }
+      };
+
+      try {
+        await verifyConfigFile();
+      } catch (error) {
+        console.warn('[EmulatrixSnesCore] Config file verification did not succeed, proceeding anyway', error);
       }
 
       // Start RetroArch with the ROM
       // This is the key command that starts everything
       console.log('[EmulatrixSnesCore] Starting RetroArch...');
-      window.Module.callMain(['-v', '/game.smc']);
+      if (window.Module?.callMain) {
+        window.Module.callMain(['-v', '/game.smc']);
+      } else {
+        throw new Error('Module.callMain not available');
+      }
 
       console.log('[EmulatrixSnesCore] RetroArch started successfully');
 
-      // Resize canvas after a delay (workaround for initialization timing)
+      // WORKAROUND: Resize canvas after delays to handle RetroArch initialization timing
+      // Multiple timeouts ensure canvas is sized correctly even on slower devices
+      // TODO: Replace with proper event listeners or RetroArch callbacks when available
       setTimeout(() => this.resizeCanvas(), 500);
       setTimeout(() => this.resizeCanvas(), 1000);
       setTimeout(() => this.resizeCanvas(), 1500);
 
     } catch (error) {
       console.error('[EmulatrixSnesCore] Error loading ROM:', error);
-      throw new Error(`Failed to load ROM: ${error}`);
+      // Preserve the original error with context
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error(`Failed to load ROM: ${String(error)}`);
     }
   }
 
@@ -363,7 +463,7 @@ export class EmulatrixSnesCore implements IEmulatorCore {
   }
 
   /**
-   * Resize the canvas to match container
+   * Resize the canvas to match SNES display dimensions
    */
   private resizeCanvas(): void {
     if (!this.canvasElement) return;
@@ -371,9 +471,9 @@ export class EmulatrixSnesCore implements IEmulatorCore {
     try {
       const container = this.canvasElement.parentElement;
       if (container) {
-        // Set canvas to fill its container (768x672 for SNES)
-        const width = 768;
-        const height = 672;
+        // Set canvas to SNES display dimensions
+        const width = EmulatrixSnesCore.CANVAS_WIDTH;
+        const height = EmulatrixSnesCore.CANVAS_HEIGHT;
         
         // Update canvas internal resolution
         this.canvasElement.width = width;
@@ -454,19 +554,24 @@ export class EmulatrixSnesCore implements IEmulatorCore {
 
   /**
    * Reset the emulator
-   * Uses RetroArch's reset hotkey
+   * Uses RetroArch's reset hotkey (F10)
    */
   reset(): void {
     console.log('[EmulatrixSnesCore] Reset requested');
     // Simulate F10 key press (reset hotkey as configured)
-    if (this.canvasElement) {
+    // Dispatch to window since RetroArch typically listens for keyboard events there
+    if (typeof window !== 'undefined') {
       const event = new KeyboardEvent('keydown', { key: 'F10' });
-      this.canvasElement.dispatchEvent(event);
+      window.dispatchEvent(event);
     }
   }
 
   /**
    * Cleanup resources
+   * 
+   * Note: This does not remove window.Module and window.FS globals as they
+   * persist across instances and are reused by subsequent initializations.
+   * This is intentional to support React StrictMode's double-mounting pattern.
    */
   cleanup(): void {
     console.log('[EmulatrixSnesCore] Cleaning up...');
@@ -477,6 +582,8 @@ export class EmulatrixSnesCore implements IEmulatorCore {
     }
 
     // Clean up RetroArch (if possible)
+    // Note: This may not fully clean up the Module, which is intentional
+    // for supporting reinitialization
     try {
       if (window.Module && window.Module.exit) {
         window.Module.exit();
@@ -486,5 +593,6 @@ export class EmulatrixSnesCore implements IEmulatorCore {
     }
 
     this.isInitialized = false;
+    this.canvasElement = null;
   }
 }
