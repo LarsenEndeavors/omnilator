@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, type RefObject } from 'react';
 
 interface UseFullscreenOptions {
+  elementRef?: RefObject<HTMLElement | null>;
   onEnter?: () => void;
   onExit?: () => void;
   onError?: (error: Error) => void;
@@ -25,16 +26,17 @@ interface UseFullscreenResult {
  * 
  * @example
  * ```tsx
+ * const containerRef = useRef<HTMLDivElement>(null);
  * const { isFullscreen, toggleFullscreen, isSupported } = useFullscreen({
+ *   elementRef: containerRef,
  *   onEnter: () => console.log('Entered fullscreen'),
  *   onExit: () => console.log('Exited fullscreen')
  * });
  * ```
  */
 export function useFullscreen(options: UseFullscreenOptions = {}): UseFullscreenResult {
-  const { onEnter, onExit, onError } = options;
+  const { elementRef, onEnter, onExit, onError } = options;
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const elementRef = useRef<HTMLElement | null>(null);
 
   // Check if Fullscreen API is supported
   const isSupported = !!(typeof document !== 'undefined' && 
@@ -43,7 +45,7 @@ export function useFullscreen(options: UseFullscreenOptions = {}): UseFullscreen
      (document as Document & { mozFullScreenEnabled?: boolean }).mozFullScreenEnabled));
 
   /**
-   * Enter fullscreen mode for the document element
+   * Enter fullscreen mode for the specified element
    */
   const enterFullscreen = useCallback(async () => {
     if (!isSupported) {
@@ -53,9 +55,13 @@ export function useFullscreen(options: UseFullscreenOptions = {}): UseFullscreen
     }
 
     try {
-      // Use document.documentElement as the fullscreen target
-      const element = document.documentElement;
-      elementRef.current = element;
+      // Use the provided element ref, or fall back to canvas container
+      const element = elementRef?.current;
+      if (!element) {
+        const error = new Error('No element available for fullscreen');
+        onError?.(error);
+        return;
+      }
 
       // Request fullscreen with browser-specific methods
       if (element.requestFullscreen) {
@@ -72,7 +78,7 @@ export function useFullscreen(options: UseFullscreenOptions = {}): UseFullscreen
       onError?.(error);
       console.error('[useFullscreen] Error entering fullscreen:', error);
     }
-  }, [isSupported, onError]);
+  }, [isSupported, elementRef, onError]);
 
   /**
    * Exit fullscreen mode

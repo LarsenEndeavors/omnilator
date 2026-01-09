@@ -145,51 +145,26 @@
 }
 
 /* Fullscreen mode styles */
-:fullscreen .emulator-screen,
-:-webkit-full-screen .emulator-screen,
-:-moz-full-screen .emulator-screen,
-:-ms-fullscreen .emulator-screen {
-  width: 100vw;
-  height: 100vh;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
+.retroarch-canvas-container:fullscreen,
+.retroarch-canvas-container:-webkit-full-screen,
+.retroarch-canvas-container:-moz-full-screen,
+.retroarch-canvas-container:-ms-fullscreen {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw;
+  max-height: 100vh;
+  display: flex !important;
   justify-content: center;
   align-items: center;
   background: #000;
-}
-
-:fullscreen .emulator-container,
-:-webkit-full-screen .emulator-container,
-:-moz-full-screen .emulator-container,
-:-ms-fullscreen .emulator-container {
-  max-width: none;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
   padding: 0;
   margin: 0;
-  border-radius: 0;
-  box-shadow: none;
 }
 
-:fullscreen .retroarch-canvas-container,
-:-webkit-full-screen .retroarch-canvas-container,
-:-moz-full-screen .retroarch-canvas-container,
-:-ms-fullscreen .retroarch-canvas-container {
-  width: 100% !important;
-  height: 100% !important;
-  max-width: 100vw;
-  max-height: 100vh;
-}
-
-:fullscreen .retroarch-canvas-container canvas,
-:-webkit-full-screen .retroarch-canvas-container canvas,
-:-moz-full-screen .retroarch-canvas-container canvas,
-:-ms-fullscreen .retroarch-canvas-container canvas {
+.retroarch-canvas-container:fullscreen canvas,
+.retroarch-canvas-container:-webkit-full-screen canvas,
+.retroarch-canvas-container:-moz-full-screen canvas,
+.retroarch-canvas-container:-ms-fullscreen canvas {
   width: auto !important;
   height: auto !important;
   max-width: 100vw;
@@ -197,51 +172,7 @@
   /* Maintain 4:3 aspect ratio (SNES native) */
   aspect-ratio: 4 / 3;
   object-fit: contain;
-}
-
-/* Hide non-essential elements in fullscreen */
-:fullscreen .emulator-header,
-:fullscreen .emulator-controls,
-:fullscreen .keyboard-controls,
-:fullscreen .info-box,
-:fullscreen .error-message,
-:fullscreen .rom-loading,
-:fullscreen .initializing,
-:-webkit-full-screen .emulator-header,
-:-webkit-full-screen .emulator-controls,
-:-webkit-full-screen .keyboard-controls,
-:-webkit-full-screen .info-box,
-:-webkit-full-screen .error-message,
-:-webkit-full-screen .rom-loading,
-:-webkit-full-screen .initializing,
-:-moz-full-screen .emulator-header,
-:-moz-full-screen .emulator-controls,
-:-moz-full-screen .keyboard-controls,
-:-moz-full-screen .info-box,
-:-moz-full-screen .error-message,
-:-moz-full-screen .rom-loading,
-:-moz-full-screen .initializing,
-:-ms-fullscreen .emulator-header,
-:-ms-fullscreen .emulator-controls,
-:-ms-fullscreen .keyboard-controls,
-:-ms-fullscreen .info-box,
-:-ms-fullscreen .error-message,
-:-ms-fullscreen .rom-loading,
-:-ms-fullscreen .initializing {
-  display: none;
-}
-
-/* Show ROM status in fullscreen but position it nicely */
-:fullscreen .rom-status,
-:-webkit-full-screen .rom-status,
-:-moz-full-screen .rom-status,
-:-ms-fullscreen .rom-status {
-  position: fixed;
-  top: 1rem;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1000;
-  max-width: 90%;
+  border-radius: 0;
 }
 
 .emulator-controls {

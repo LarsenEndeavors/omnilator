@@ -29,8 +29,9 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
   const [isLoadingRom, setIsLoadingRom] = useState(false);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
 
-  // Fullscreen hook
+  // Fullscreen hook - target the canvas container
   const { isFullscreen, toggleFullscreen, isSupported: isFullscreenSupported } = useFullscreen({
+    elementRef: canvasContainerRef,
     onEnter: () => console.log('[EmulatorScreen] Entered fullscreen mode'),
     onExit: () => console.log('[EmulatorScreen] Exited fullscreen mode'),
     onError: (err) => {

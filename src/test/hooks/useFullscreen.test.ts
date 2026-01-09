@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useFullscreen } from '../../hooks/useFullscreen';
+import { useRef } from 'react';
 
 describe('useFullscreen', () => {
   // Store original document methods
@@ -8,8 +9,13 @@ describe('useFullscreen', () => {
   let originalExitFullscreen: typeof document.exitFullscreen | undefined;
   let originalFullscreenElement: PropertyDescriptor | undefined;
   let originalFullscreenEnabled: PropertyDescriptor | undefined;
+  let mockElement: HTMLDivElement;
 
   beforeEach(() => {
+    // Create a mock element
+    mockElement = document.createElement('div');
+    mockElement.requestFullscreen = vi.fn().mockResolvedValue(undefined);
+    
     // Save original methods
     originalRequestFullscreen = document.documentElement.requestFullscreen;
     originalExitFullscreen = document.exitFullscreen;
@@ -17,7 +23,6 @@ describe('useFullscreen', () => {
     originalFullscreenEnabled = Object.getOwnPropertyDescriptor(document, 'fullscreenEnabled');
 
     // Mock fullscreen API
-    document.documentElement.requestFullscreen = vi.fn().mockResolvedValue(undefined);
     document.exitFullscreen = vi.fn().mockResolvedValue(undefined);
     
     Object.defineProperty(document, 'fullscreenEnabled', {
@@ -64,17 +69,26 @@ describe('useFullscreen', () => {
   });
 
   it('should call requestFullscreen when enterFullscreen is invoked', async () => {
-    const { result } = renderHook(() => useFullscreen());
+    const { result } = renderHook(() => {
+      const ref = useRef<HTMLDivElement>(null);
+      // Manually set the ref's current to our mock element
+      ref.current = mockElement;
+      return useFullscreen({ elementRef: ref });
+    });
     
     await act(async () => {
       await result.current.enterFullscreen();
     });
     
-    expect(document.documentElement.requestFullscreen).toHaveBeenCalledOnce();
+    expect(mockElement.requestFullscreen).toHaveBeenCalledOnce();
   });
 
   it('should call exitFullscreen when exitFullscreen is invoked', async () => {
-    const { result } = renderHook(() => useFullscreen());
+    const { result } = renderHook(() => {
+      const ref = useRef<HTMLDivElement>(null);
+      ref.current = mockElement;
+      return useFullscreen({ elementRef: ref });
+    });
     
     await act(async () => {
       await result.current.exitFullscreen();
@@ -84,7 +98,11 @@ describe('useFullscreen', () => {
   });
 
   it('should toggle fullscreen state when toggleFullscreen is called', async () => {
-    const { result } = renderHook(() => useFullscreen());
+    const { result } = renderHook(() => {
+      const ref = useRef<HTMLDivElement>(null);
+      ref.current = mockElement;
+      return useFullscreen({ elementRef: ref });
+    });
     
     // First toggle - enter fullscreen
     await act(async () => {
@@ -92,18 +110,22 @@ describe('useFullscreen', () => {
       await new Promise(resolve => setTimeout(resolve, 0));
     });
     
-    expect(document.documentElement.requestFullscreen).toHaveBeenCalledOnce();
+    expect(mockElement.requestFullscreen).toHaveBeenCalledOnce();
   });
 
   it('should update isFullscreen when fullscreenchange event fires', async () => {
-    const { result } = renderHook(() => useFullscreen());
+    const { result } = renderHook(() => {
+      const ref = useRef<HTMLDivElement>(null);
+      ref.current = mockElement;
+      return useFullscreen({ elementRef: ref });
+    });
     
     // Simulate entering fullscreen
     act(() => {
       Object.defineProperty(document, 'fullscreenElement', {
         writable: true,
         configurable: true,
-        value: document.documentElement,
+        value: mockElement,
       });
       
       const event = new Event('fullscreenchange');
@@ -129,13 +151,17 @@ describe('useFullscreen', () => {
 
   it('should call onEnter callback when entering fullscreen', async () => {
     const onEnter = vi.fn();
-    renderHook(() => useFullscreen({ onEnter }));
+    renderHook(() => {
+      const ref = useRef<HTMLDivElement>(null);
+      ref.current = mockElement;
+      return useFullscreen({ elementRef: ref, onEnter });
+    });
     
     act(() => {
       Object.defineProperty(document, 'fullscreenElement', {
         writable: true,
         configurable: true,
-        value: document.documentElement,
+        value: mockElement,
       });
       
       const event = new Event('fullscreenchange');
@@ -147,14 +173,18 @@ describe('useFullscreen', () => {
 
   it('should call onExit callback when exiting fullscreen', async () => {
     const onExit = vi.fn();
-    renderHook(() => useFullscreen({ onExit }));
+    renderHook(() => {
+      const ref = useRef<HTMLDivElement>(null);
+      ref.current = mockElement;
+      return useFullscreen({ elementRef: ref, onExit });
+    });
     
     // First enter fullscreen
     act(() => {
       Object.defineProperty(document, 'fullscreenElement', {
         writable: true,
         configurable: true,
-        value: document.documentElement,
+        value: mockElement,
       });
       
       document.dispatchEvent(new Event('fullscreenchange'));
@@ -178,9 +208,14 @@ describe('useFullscreen', () => {
     const onError = vi.fn();
     const mockError = new Error('Fullscreen denied');
     
-    document.documentElement.requestFullscreen = vi.fn().mockRejectedValue(mockError);
+    const failingElement = document.createElement('div');
+    failingElement.requestFullscreen = vi.fn().mockRejectedValue(mockError);
     
-    const { result } = renderHook(() => useFullscreen({ onError }));
+    const { result } = renderHook(() => {
+      const ref = useRef<HTMLDivElement>(null);
+      ref.current = failingElement;
+      return useFullscreen({ elementRef: ref, onError });
+    });
     
     await act(async () => {
       await result.current.enterFullscreen();
@@ -189,31 +224,34 @@ describe('useFullscreen', () => {
     expect(onError).toHaveBeenCalledWith(mockError);
   });
 
-  it('should handle unsupported browsers gracefully', async () => {
+  it('should handle missing element reference gracefully', async () => {
     const onError = vi.fn();
     
-    const { result } = renderHook(() => useFullscreen({ onError }));
-    
-    // We can't easily mock isSupported in this test environment
-    // since it's calculated inline, but we can verify error handling works
-    // when fullscreen is explicitly not supported by making the API throw
-    
-    // Mock the API to throw a specific error
-    document.documentElement.requestFullscreen = vi.fn().mockRejectedValue(
-      new Error('Fullscreen API is not supported in this browser')
-    );
+    const { result } = renderHook(() => {
+      const ref = useRef<HTMLDivElement>(null);
+      // Don't set ref.current - simulate missing element
+      return useFullscreen({ elementRef: ref, onError });
+    });
     
     await act(async () => {
       await result.current.enterFullscreen();
     });
     
-    expect(onError).toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'No element available for fullscreen',
+      })
+    );
   });
 
   it('should cleanup event listeners on unmount', () => {
     const removeEventListenerSpy = vi.spyOn(document, 'removeEventListener');
     
-    const { unmount } = renderHook(() => useFullscreen());
+    const { unmount } = renderHook(() => {
+      const ref = useRef<HTMLDivElement>(null);
+      ref.current = mockElement;
+      return useFullscreen({ elementRef: ref });
+    });
     
     unmount();
     
@@ -221,5 +259,7 @@ describe('useFullscreen', () => {
     expect(removeEventListenerSpy).toHaveBeenCalledWith('webkitfullscreenchange', expect.any(Function));
     expect(removeEventListenerSpy).toHaveBeenCalledWith('mozfullscreenchange', expect.any(Function));
     expect(removeEventListenerSpy).toHaveBeenCalledWith('MSFullscreenChange', expect.any(Function));
+    
+    removeEventListenerSpy.mockRestore();
   });
 });
