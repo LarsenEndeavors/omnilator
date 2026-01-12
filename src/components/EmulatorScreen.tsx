@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { SnesCore } from '../core/SnesCore';
+import { useFullscreen } from '../hooks/useFullscreen';
 import './EmulatorScreen.css';
 
 interface EmulatorScreenProps {
@@ -27,6 +28,17 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
   const [loadedRomName, setLoadedRomName] = useState<string | null>(null);
   const [isLoadingRom, setIsLoadingRom] = useState(false);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
+
+  // Initialize fullscreen hook
+  const { toggleFullscreen } = useFullscreen({
+    elementRef: canvasContainerRef,
+    onEnter: () => {
+      console.log('[EmulatorScreen] Entered fullscreen mode');
+    },
+    onExit: () => {
+      console.log('[EmulatorScreen] Exited fullscreen mode');
+    },
+  });
 
   // Initialize emulator core
   useEffect(() => {
@@ -158,6 +170,9 @@ export const EmulatorScreen: React.FC<EmulatorScreenProps> = ({ romData }) => {
           </label>
           <button onClick={handleReset} disabled={!isInitialized || !loadedRomName}>
             🔄 Reset (F10)
+          </button>
+          <button onClick={toggleFullscreen} disabled={!isInitialized}>
+            ⛶ Fullscreen
           </button>
         </div>
       </div>
