@@ -64,7 +64,7 @@ describe('useFullscreen', () => {
       expect(mockElement.requestFullscreen).toHaveBeenCalledOnce();
     });
 
-    it('should save canvas dimensions before entering fullscreen', async () => {
+    it('should not modify canvas dimensions when entering fullscreen', async () => {
       const { result } = renderHook(() => {
         const elementRef = useRef<HTMLDivElement>(mockElement);
         return useFullscreen({ elementRef });
@@ -77,7 +77,7 @@ describe('useFullscreen', () => {
         await result.current.enterFullscreen();
       });
 
-      // Canvas dimensions should remain unchanged
+      // Canvas dimensions should remain unchanged - CSS handles visual scaling
       expect(mockCanvas.getAttribute('width')).toBe(originalWidth);
       expect(mockCanvas.getAttribute('height')).toBe(originalHeight);
     });
@@ -161,7 +161,7 @@ describe('useFullscreen', () => {
       expect(document.exitFullscreen).toHaveBeenCalled();
     });
 
-    it('should restore canvas dimensions when exiting fullscreen', async () => {
+    it('should not modify canvas dimensions when exiting fullscreen', async () => {
       const { result } = renderHook(() => {
         const elementRef = useRef<HTMLDivElement>(mockElement);
         return useFullscreen({ elementRef });
@@ -182,16 +182,12 @@ describe('useFullscreen', () => {
         value: mockElement,
       });
 
-      // Simulate canvas dimension changes (what the bug would cause)
-      mockCanvas.setAttribute('width', '1920');
-      mockCanvas.setAttribute('height', '1080');
-
       // Exit fullscreen
       await act(async () => {
         await result.current.exitFullscreen();
       });
 
-      // Dimensions should be restored to original values
+      // Canvas dimensions should remain unchanged - RetroArch manages them
       expect(mockCanvas.getAttribute('width')).toBe(originalWidth);
       expect(mockCanvas.getAttribute('height')).toBe(originalHeight);
     });

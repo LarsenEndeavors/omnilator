@@ -1,4 +1,4 @@
-import { useCallback, useRef, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 interface UseFullscreenOptions {
   elementRef: React.RefObject<HTMLElement | null>;
@@ -14,11 +14,10 @@ interface UseFullscreenResult {
 }
 
 /**
- * Custom hook for managing fullscreen mode with canvas dimension preservation
+ * Custom hook for managing fullscreen mode
  * 
- * This hook ensures that entering/exiting fullscreen only changes the visual
- * display size via CSS, without modifying the canvas element's actual width
- * and height attributes (which define rendering resolution).
+ * This hook handles entering/exiting fullscreen without modifying the canvas
+ * element's width and height attributes. The CSS handles visual scaling.
  */
 export function useFullscreen({
   elementRef,
@@ -26,51 +25,11 @@ export function useFullscreen({
   onExit,
 }: UseFullscreenOptions): UseFullscreenResult {
   const [isFullscreen, setIsFullscreen] = useState(false);
-  
-  // Store original canvas dimensions before entering fullscreen
-  const originalDimensionsRef = useRef<{
-    width: string | null;
-    height: string | null;
-  } | null>(null);
-
-  const saveCanvasDimensions = useCallback(() => {
-    if (!elementRef.current) return;
-    
-    // Find the canvas element (RetroArch canvas)
-    const canvas = elementRef.current.querySelector('canvas');
-    if (!canvas) return;
-    
-    // Save the actual canvas attributes (rendering resolution)
-    originalDimensionsRef.current = {
-      width: canvas.getAttribute('width'),
-      height: canvas.getAttribute('height'),
-    };
-    
-    console.log('[useFullscreen] Saved canvas dimensions:', originalDimensionsRef.current);
-  }, [elementRef]);
-
-  const restoreCanvasDimensions = useCallback(() => {
-    if (!elementRef.current || !originalDimensionsRef.current) return;
-    
-    // Find the canvas element
-    const canvas = elementRef.current.querySelector('canvas');
-    if (!canvas) return;
-    
-    // Restore the original canvas attributes (rendering resolution)
-    const { width, height } = originalDimensionsRef.current;
-    if (width) canvas.setAttribute('width', width);
-    if (height) canvas.setAttribute('height', height);
-    
-    console.log('[useFullscreen] Restored canvas dimensions:', originalDimensionsRef.current);
-  }, [elementRef]);
 
   const enterFullscreen = useCallback(async () => {
     if (!elementRef.current || isFullscreen) return;
 
     try {
-      // Save canvas dimensions before entering fullscreen
-      saveCanvasDimensions();
-      
       // Request fullscreen on the container element
       await elementRef.current.requestFullscreen();
       
@@ -80,19 +39,14 @@ export function useFullscreen({
       console.log('[useFullscreen] Entered fullscreen mode');
     } catch (error) {
       console.error('[useFullscreen] Failed to enter fullscreen:', error);
-      // If fullscreen failed, we don't need to restore dimensions
-      originalDimensionsRef.current = null;
     }
-  }, [elementRef, isFullscreen, onEnter, saveCanvasDimensions]);
+  }, [elementRef, isFullscreen, onEnter]);
 
   const exitFullscreen = useCallback(async () => {
     if (!document.fullscreenElement || !isFullscreen) return;
 
     try {
       await document.exitFullscreen();
-      
-      // Restore canvas dimensions after exiting fullscreen
-      restoreCanvasDimensions();
       
       setIsFullscreen(false);
       onExit?.();
@@ -101,7 +55,7 @@ export function useFullscreen({
     } catch (error) {
       console.error('[useFullscreen] Failed to exit fullscreen:', error);
     }
-  }, [isFullscreen, onExit, restoreCanvasDimensions]);
+  }, [isFullscreen, onExit]);
 
   const toggleFullscreen = useCallback(async () => {
     if (isFullscreen) {
@@ -118,7 +72,6 @@ export function useFullscreen({
       
       if (!isNowFullscreen && isFullscreen) {
         // User exited fullscreen (e.g., pressed ESC)
-        restoreCanvasDimensions();
         setIsFullscreen(false);
         onExit?.();
         console.log('[useFullscreen] Fullscreen exited via browser control');
@@ -130,7 +83,7 @@ export function useFullscreen({
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
-  }, [isFullscreen, onExit, restoreCanvasDimensions]);
+  }, [isFullscreen, onExit]);
 
   return {
     isFullscreen,
