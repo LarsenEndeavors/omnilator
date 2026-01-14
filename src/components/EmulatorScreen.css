@@ -144,6 +144,24 @@
   border-radius: 0.25rem;
 }
 
+/* Fullscreen styles - preserve aspect ratio without changing canvas resolution */
+.retroarch-canvas-container:fullscreen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+}
+
+.retroarch-canvas-container:fullscreen canvas {
+  width: 100vw !important;
+  height: 100vh !important;
+  object-fit: contain;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
 .emulator-controls {
   width: 100%;
   max-width: 800px;
